@@ -80,9 +80,14 @@ Code.*
     ```julia
     add IJulia
     ```
-    - this should also build the `IJulia` package by default, creating a conda environment suitable for running a jupyter session with this specific version of Julia; if we want to be sure, we can also run the command explicitly:
+    - this should also build the `IJulia` package by default, creating an environment suitable for running a jupyter session with this specific version of Julia; if we want to be sure, we can also run the command explicitly:
     ```julia
     build IJulia
     ```
+    - at this point, it could be necessary to run:
+    ```julia
+    IJulia.installkernel("Julia", "--project=@.")
+    ```
+
     **Note**: This should not be needed on most machines; you may first want to try reinstalling `julia-lang` and `jupyter` extensions in Visual Studio Code and/or rebooting your machine.
 
