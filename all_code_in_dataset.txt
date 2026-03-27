@@ -1,4 +1,4 @@
-use conditions:
+Use conditions:
     https://share-eric.eu/data/data-access/conditions-of-use
 
 Explanation dataset code:
