@@ -1,0 +1,37 @@
+Use conditions:
+    https://share-eric.eu/data/data-access/conditions-of-use
+
+Explanation dataset code:
+    https://www.share-datadocutool.org/study-units/view/6
+
+Our dataset code:
+"mergeid","age_int","hhsize","dn042_","dn503_","dn014_","dn034_","iv009_","hh022_",
+"hh025_","hh017e","sp002_","sp008_","ch001_","ch021_","ep005_","co007_","ac035d1",
+"ac035d4","ac035d5","ac035d7","ac035d8","ac035d9","ac035d10","ac035dno","ac012_",
+"ac014_","ac015_","ac016_","ac017_","ac018_","ac019_","ac020_","ac021_","ac022_",
+"ac023_","ac024_","ac025_","it003_","euro1","euro2","euro3","euro4","euro5","euro6",
+"euro7","euro8","euro9","euro10","euro11","euro12","bmi2","phactiv","hhid5","mergeidp5",
+"coupleid5","country","language","ph003_","ph004_","ph005_","ph006d1","ph006d2","ph006d3",
+"ph006d4","ph006d5","ph006d6","ph006d10","ph006d11","ph006d12","ph006d13","ph006d14","ph006d15",
+"ph006d16","ph006d18","ph006d19","ph006d20","ph006dno","ph006dot","ph008d1","ph008d2","ph008d3",
+"ph008d4","ph008d5","ph008d6","ph008d7","ph008d8","ph008d9","ph008d10","ph008d11","ph008d12","ph008d13",
+"ph008d14","ph008d15","ph008d16","ph008d17","ph008d18","ph008d19","ph008d20","ph008d21","ph008d22",
+"ph008dot","ph009_1","ph009_2","ph009_3","ph009_4","ph009_5","ph009_6","ph009_10","ph009_11","ph009_12",
+"ph009_13","ph009_14","ph009_15","ph009_16","ph009_18","ph009_19","ph009_20","ph009_other","ph011d1",
+"ph011d2","ph011d3","ph011d4","ph011d6","ph011d7","ph011d8","ph011d9","ph011d10","ph011d11","ph011d13",
+"ph011d14","ph011d15","ph011dno","ph011dot","ph012_","ph013_","ph041_","ph043_","ph044_","ph045_",
+"ph046_","ph048d1","ph048d2","ph048d3","ph048d4","ph048d5","ph048d6","ph048d7","ph048d8","ph048d9",
+"ph048d10","ph048dno","ph049d1","ph049d2","ph049d3","ph049d4","ph049d5","ph049d6","ph049d7","ph049d8",
+"ph049d9","ph049d10","ph049d11","ph049d12","ph049d13","ph049dno","ph054_","ph061_","ph065_","ph066_",
+"ph071_1","ph071_2","ph071_3","ph071_4","ph072_1","ph072_2","ph072_3","ph072_4","ph073_1","ph073_2",
+"ph073_3","ph073_4","ph074_1","ph074_2","ph074_3","ph074_4","ph075_1","ph075_2","ph075_3","ph075_4",
+"ph076_1","ph076_2","ph076_3","ph076_4","ph077_1","ph077_2","ph077_3","ph077_4","ph080d1","ph080d2",
+"ph080d3","ph080d4","ph080d5","ph080d6","ph080d7","ph080d8","ph080d9","ph080d10","ph080d11","ph080d12",
+"ph080d13","ph080d14","ph080d15","ph080d16","ph080d17","ph080d18","ph080d19","ph080d20","ph080d21",
+"ph080d22","ph080dot","ph084_","ph085_","ph087d1","ph087d2","ph087d3","ph087d4","ph087d5","ph087d6",
+"ph087d7","ph088_","ph089d1","ph089d2","ph089d3","ph089d4","ph089dno","ph090_","ph091_","ph092_",
+"ph094_","ph095_","mh037_","hc012_","hc029_","hc114_","hc115_","hc125_","br015_","br016_","isced1997_r",
+"wave","initial_euro_d","euro_d","hhid6","mergeidp6","coupleid6","ph006d21","ph009_21","ph049d14",
+"ph049d15","ph050_","ph051_","ph059d1","ph059d2","ph059d3","ph059d4","ph059d5","ph059d6","ph059d7",
+"ph059d8","ph059d9","ph059d10","ph059dno","ph059dot","ph082_","ph690d1","ph690d2","ph690d3","ph690d4",
+"hhid7","mergeidp7","coupleid7","ph745_"
