@@ -459,14 +459,34 @@ run_task(ScatterTask(
 @bind df_euro_colname Select(names(df_euro))
 
 # ╔═╡ 6243c7c3-8d9f-40a7-9276-bf80c92bd242
-run_task(MultiTask([
-	HistogramTask(df_euro[:,df_euro_colname]; params=(group=df_euro[:,"euro_d"],)), 
-	BoxplotTask(df_euro[:,df_euro_colname])]);
-	layout = (1, 2,)
-)
+begin
+	df_clean = dropmissing(df_euro, [df_euro_colname, "euro_d"])
+
+	run_task(
+		MultiTask([
+			HistogramTask(
+				df_clean[:,df_euro_colname]; 
+				params=(group=df_clean[:, "euro_d"],)), 
+			BoxplotTask(
+				df_clean[:,df_euro_colname])
+		]);
+		layout = (1, 2,)
+	)
+end
 
 # ╔═╡ 1e8b58a2-d470-49ed-aa23-f7eecb6f00cb
 md"""
+# TODO: Remove useless distributions
+Remove attributes with just one value.
+
+# TODO: VarianceFilter 
+Keep only those with variance higher than a threshold.
+
+# TODO: Limiter
+Statistics for removing a certain column.
+
+# TODO: outlier (remove pre and after a certain percentile)
+
 # TODO: Wrapper Filters
 """
 
@@ -511,4 +531,4 @@ md"""
 # ╠═98bd33fc-526e-45c7-bbb6-ad67abe05838
 # ╠═fe25627e-3fbf-462c-a0aa-82d0179cd9bb
 # ╠═6243c7c3-8d9f-40a7-9276-bf80c92bd242
-# ╟─1e8b58a2-d470-49ed-aa23-f7eecb6f00cb
+# ╠═1e8b58a2-d470-49ed-aa23-f7eecb6f00cb
