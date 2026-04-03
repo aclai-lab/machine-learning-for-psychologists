@@ -21,6 +21,8 @@ begin
 	import Pkg
 	Pkg.activate(Base.current_project(@__DIR__))
 	using PlutoUI
+	using Plots
+	using StatsPlots
 	using CSV
 	using DataFrames
 	using StatFiles
@@ -312,7 +314,7 @@ begin
 	    "phactiv" => "no_physical_activity",
 	)
 	
-	dropped_variables = [ "mergeid", "hhid5", "hhid6", "hhid7", "mergeidp5", "mergeidp6", "mergeidp7", "coupleid5", "coupleid6", "coupleid7", "ph008d1", "ph054_", "ph080d1", "ph080d2", "ph080d3", "ph080d4", "ph080d5", "ph080d6", "ph080d7", "ph080d8", "ph080d9", "ph080d10", "ph080d11", "ph080d12", "ph080d13", "ph080d14", "ph080d15", "ph080d16", "ph080d17", "ph080d18", "ph080d19", "ph080d20", "ph080d21", "ph080d22", "ph080dot", "ph087d1", "ph087d2", "ph087d3", "ph087d4", "ph087d5", "ph087d6", "ph087d7", "ph088_", "ph089dno", "ph082_", "initial_euro_d", "euro_d", "ph006d21", "ph049d14", "ph049d15", "ph050_", "ph051_", "ph059d1", "ph059d2", "ph059d3", "ph059d4", "ph059d5", "ph059d6", "ph059d7", "ph059d8", "ph059d9", "ph059d10", "ph059dno", "ph059dot", "ph690d1", "ph690d2", "ph690d3", "ph690d4", "ph745_","ph009_1","ph009_2","ph009_3","ph009_4","ph009_5","ph009_6","ph009_10","ph009_11","ph009_12","ph009_13","ph009_14","ph009_15","ph009_16","ph009_18","ph009_19","ph009_20","ph009_other"]	
+	dropped_variables = [ "mergeid", "hhid5", "hhid6", "hhid7", "mergeidp5", "mergeidp6", "mergeidp7", "coupleid5", "coupleid6", "coupleid7", "ph008d1", "ph054_", "ph080d1", "ph080d2", "ph080d3", "ph080d4", "ph080d5", "ph080d6", "ph080d7", "ph080d8", "ph080d9", "ph080d10", "ph080d11", "ph080d12", "ph080d13", "ph080d14", "ph080d15", "ph080d16", "ph080d17", "ph080d18", "ph080d19", "ph080d20", "ph080d21", "ph080d22", "ph080dot", "ph087d1", "ph087d2", "ph087d3", "ph087d4", "ph087d5", "ph087d6", "ph087d7", "ph088_", "ph089dno", "ph082_", "ph006d21", "ph049d14", "ph049d15", "ph050_", "ph051_", "ph059d1", "ph059d2", "ph059d3", "ph059d4", "ph059d5", "ph059d6", "ph059d7", "ph059d8", "ph059d9", "ph059d10", "ph059dno", "ph059dot", "ph690d1", "ph690d2", "ph690d3", "ph690d4", "ph745_","ph009_1","ph009_2","ph009_3","ph009_4","ph009_5","ph009_6","ph009_10","ph009_11","ph009_12","ph009_13","ph009_14","ph009_15","ph009_16","ph009_18","ph009_19","ph009_20","ph009_other"]	
 end
 
 # ╔═╡ d3a4de4f-10c8-4e70-9104-b47364b99179
@@ -342,7 +344,7 @@ description = summary_table(df)
 run_task(HistogramTask(df[:,colname]))
 
 # ╔═╡ 8d047693-fc98-44da-8ba2-53b43c0ffb88
-@bind perc_missing_col Slider(0:0.05:1, show_value=true)
+@bind perc_missing_col Slider(0:0.05:1, show_value=true, default=1.0)
 
 # ╔═╡ c77ca35d-d91d-440e-85f0-1926ed3848a6
 max_missing_instances = round(Int, perc_missing_col * n_rows);
@@ -364,13 +366,16 @@ Now $(df_nmc_cols) columns remains.
 """
 
 # ╔═╡ 9b0d582d-97cc-4015-a554-1933a44f2c35
-@bind perc_missing_row Slider(0:0.01:1, show_value=true)
+@bind perc_missing_row Slider(0:0.01:1, show_value=true, default=1.0)
 
 # ╔═╡ f9fa4262-616a-446e-8f36-1e1f4e057b6d
 max_missing_along_row = round(Int, perc_missing_row * df_nmc_cols);
 
+# ╔═╡ f101f661-dfc5-4b05-bbcf-04b72c8091bf
+df_nmc[:,"initial_euro_d"]
+
 # ╔═╡ 35e96199-c896-46a7-bc63-0853ba7bbd14
-df_nmrc = filter_along_dimension(df_nmc, max_missing_along_row, dims=:rows);
+df_nmrc = filter_along_dimension(df_nmc, max_missing_along_row, dims=:rows)
 
 # ╔═╡ 80bb34be-1be4-4fb4-97e7-4a5640bbd4de
 round(232.232, digits=2)
@@ -394,6 +399,73 @@ Now, $(df_nmrc_rows) instances remains.
 # ╔═╡ d09c8f96-74fa-4e98-87b3-080f8d0aae02
 run_task(HistogramTask(df_nmrc[:,df_nmrc_colname]))
 
+# ╔═╡ 25bc4de2-a1df-4e78-87bd-118f33287928
+y = df_nmrc[:,"euro_d"]
+
+# ╔═╡ f84cd739-ab38-4e21-b9c1-f0447267f73e
+begin
+	df_nmrc[:,"initial_euro_d_int"] = [v == "no" ? 0 : 1 for v in df_nmrc[:,"initial_euro_d"]]
+
+	select!(df_nmrc, Not("initial_euro_d"));
+end
+
+# ╔═╡ 147b3de2-5a64-4bfc-adc8-af8c9b5d25b8
+md"""
+# Manual check for euro scores
+
+We decide to remove the (few) rows containing -1 and -2 in the *euro_d* fields (respectively, "Don't know" and the "I prefer not to answer").
+"""
+
+# ╔═╡ 3575f98f-37b4-4504-aec0-a6e546a7fb7e
+euro_d_attributes = [
+	"depression_symptom_depression", 
+	"depression_symptom_pessimism", 
+	"depression_symptom_suicidality", 
+	"depression_symptom_guilt", 
+	"depression_symptom_sleep", 
+	"depression_symptom_interest", 
+	"depression_symptom_irritability", 
+	"depression_symptom_appetite", 
+	"depression_symptom_fatigue", 
+	"depression_symptom_concentration", 
+	"depression_symptom_enjoyment", 
+	"depression_symptom_tearfulness",
+]
+
+# ╔═╡ 31cb1d64-9781-47c4-99a9-b1952fcfefbf
+typeof.(df_nmrc[:, "depression_symptom_tearfulness"]) |> unique
+
+# ╔═╡ 9c17d796-1b74-4fcf-99cb-02975bbd9a83
+df_euro = filter_along_dimension(df_nmrc, 1; dims=:rows, property=(x -> x isa Number && (x < 0)), colnames=euro_d_attributes)
+
+# ╔═╡ e452edcd-8ac8-4bb7-a96a-26b2ce8d6058
+euro_score_total = [
+	sum([r[attribute] for attribute in euro_d_attributes])
+	for r in eachrow(df_euro)
+]
+
+# ╔═╡ 98bd33fc-526e-45c7-bbb6-ad67abe05838
+run_task(ScatterTask(
+	euro_score_total .+ 0.15 .* randn(length(euro_score_total)), 
+	df_euro[:, "age"]; 
+	params=(
+		group=df_euro[:, "euro_d"], 
+		markerstrokewidth=0,  
+		jitter=0.2,
+		markersize=1,
+		xlabel="Euro-d depression at follow up",
+		ylabel="Age",
+	)
+))
+
+# ╔═╡ a246c333-3fe3-4d82-8b00-fb0cd327a956
+
+
+# ╔═╡ 1e8b58a2-d470-49ed-aa23-f7eecb6f00cb
+md"""
+# TODO: Wrapper Filters
+"""
+
 # ╔═╡ Cell order:
 # ╟─49733da1-b29a-41cd-a1dd-3d748ca70f97
 # ╠═494947b5-219b-43ad-b29f-56216b3dc639
@@ -411,13 +483,14 @@ run_task(HistogramTask(df_nmrc[:,df_nmrc_colname]))
 # ╠═b7dc3954-e7e2-4064-b96b-0f18ac20fd45
 # ╠═44130ea6-884e-45a7-a580-290b09609a49
 # ╠═8d047693-fc98-44da-8ba2-53b43c0ffb88
-# ╠═c77ca35d-d91d-440e-85f0-1926ed3848a6
-# ╠═d3718495-98b7-47da-861e-982977b7a4cd
+# ╟─c77ca35d-d91d-440e-85f0-1926ed3848a6
+# ╟─d3718495-98b7-47da-861e-982977b7a4cd
 # ╠═a271df5b-07a9-4580-93f6-e4ae2cac527c
 # ╠═33a2f102-1a76-49aa-9ec2-39f981a51272
 # ╟─9d5b8635-8126-4a87-9111-b3970cabf595
 # ╠═9b0d582d-97cc-4015-a554-1933a44f2c35
 # ╠═f9fa4262-616a-446e-8f36-1e1f4e057b6d
+# ╠═f101f661-dfc5-4b05-bbcf-04b72c8091bf
 # ╠═35e96199-c896-46a7-bc63-0853ba7bbd14
 # ╠═80bb34be-1be4-4fb4-97e7-4a5640bbd4de
 # ╟─504e7090-f1b2-4d3e-95ee-8d4799c42bcc
@@ -425,3 +498,13 @@ run_task(HistogramTask(df_nmrc[:,df_nmrc_colname]))
 # ╟─d1e0a774-4a70-4923-8206-bca327ff27d8
 # ╠═3094d269-cd3d-46b6-9f32-cb99e19f3cc9
 # ╠═d09c8f96-74fa-4e98-87b3-080f8d0aae02
+# ╠═25bc4de2-a1df-4e78-87bd-118f33287928
+# ╠═f84cd739-ab38-4e21-b9c1-f0447267f73e
+# ╟─147b3de2-5a64-4bfc-adc8-af8c9b5d25b8
+# ╠═3575f98f-37b4-4504-aec0-a6e546a7fb7e
+# ╠═31cb1d64-9781-47c4-99a9-b1952fcfefbf
+# ╠═9c17d796-1b74-4fcf-99cb-02975bbd9a83
+# ╠═e452edcd-8ac8-4bb7-a96a-26b2ce8d6058
+# ╠═98bd33fc-526e-45c7-bbb6-ad67abe05838
+# ╠═a246c333-3fe3-4d82-8b00-fb0cd327a956
+# ╟─1e8b58a2-d470-49ed-aa23-f7eecb6f00cb
