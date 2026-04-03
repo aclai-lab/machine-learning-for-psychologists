@@ -399,9 +399,6 @@ Now, $(df_nmrc_rows) instances remains.
 # ╔═╡ d09c8f96-74fa-4e98-87b3-080f8d0aae02
 run_task(HistogramTask(df_nmrc[:,df_nmrc_colname]))
 
-# ╔═╡ 25bc4de2-a1df-4e78-87bd-118f33287928
-y = df_nmrc[:,"euro_d"]
-
 # ╔═╡ f84cd739-ab38-4e21-b9c1-f0447267f73e
 begin
 	df_nmrc[:,"initial_euro_d_int"] = [v == "no" ? 0 : 1 for v in df_nmrc[:,"initial_euro_d"]]
@@ -458,8 +455,15 @@ run_task(ScatterTask(
 	)
 ))
 
-# ╔═╡ a246c333-3fe3-4d82-8b00-fb0cd327a956
+# ╔═╡ fe25627e-3fbf-462c-a0aa-82d0179cd9bb
+@bind df_euro_colname Select(names(df_euro))
 
+# ╔═╡ 6243c7c3-8d9f-40a7-9276-bf80c92bd242
+run_task(MultiTask([
+	HistogramTask(df_euro[:,df_euro_colname]; params=(group=df_euro[:,"euro_d"],)), 
+	BoxplotTask(df_euro[:,df_euro_colname])]);
+	layout = (1, 2,)
+)
 
 # ╔═╡ 1e8b58a2-d470-49ed-aa23-f7eecb6f00cb
 md"""
@@ -498,7 +502,6 @@ md"""
 # ╟─d1e0a774-4a70-4923-8206-bca327ff27d8
 # ╠═3094d269-cd3d-46b6-9f32-cb99e19f3cc9
 # ╠═d09c8f96-74fa-4e98-87b3-080f8d0aae02
-# ╠═25bc4de2-a1df-4e78-87bd-118f33287928
 # ╠═f84cd739-ab38-4e21-b9c1-f0447267f73e
 # ╟─147b3de2-5a64-4bfc-adc8-af8c9b5d25b8
 # ╠═3575f98f-37b4-4504-aec0-a6e546a7fb7e
@@ -506,5 +509,6 @@ md"""
 # ╠═9c17d796-1b74-4fcf-99cb-02975bbd9a83
 # ╠═e452edcd-8ac8-4bb7-a96a-26b2ce8d6058
 # ╠═98bd33fc-526e-45c7-bbb6-ad67abe05838
-# ╠═a246c333-3fe3-4d82-8b00-fb0cd327a956
+# ╠═fe25627e-3fbf-462c-a0aa-82d0179cd9bb
+# ╠═6243c7c3-8d9f-40a7-9276-bf80c92bd242
 # ╟─1e8b58a2-d470-49ed-aa23-f7eecb6f00cb
