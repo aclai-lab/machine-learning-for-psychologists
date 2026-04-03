@@ -4,6 +4,18 @@
 using Markdown
 using InteractiveUtils
 
+# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
+macro bind(def, element)
+    #! format: off
+    return quote
+        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
+        local el = $(esc(element))
+        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
+        el
+    end
+    #! format: on
+end
+
 # ╔═╡ 494947b5-219b-43ad-b29f-56216b3dc639
 begin
 	import Pkg
@@ -15,20 +27,35 @@ begin
 	using FileIO
 
 	using SoleFeatures
+	using DataTreatments
+
+	include(joinpath(@__DIR__, "..", "utils", "filters.jl"))
 end
+
+# ╔═╡ 49733da1-b29a-41cd-a1dd-3d748ca70f97
+md"""
+# Imports
+"""
+
+# ╔═╡ a6c8a233-8c6f-43b2-a4fd-a0bbc6425d74
+md"""
+# Data Loading
+"""
 
 # ╔═╡ e202a63d-b119-47ac-bf70-6516fb29f423
 begin
-	DATA_PATH = joinpath(@__DIR__,"..","datasets","not_onco_combined_dataset")
+	DATA_PATH = joinpath(@__DIR__, "..", "datasets", "not_onco_combined_dataset")
 	SAV_PATH = "$(DATA_PATH).sav"
 	CSV_PATH = "$(DATA_PATH).csv"
 end
 
 # ╔═╡ f6b53ccf-85e2-40bd-bef4-6a329b1bf2d4
-df = DataFrame(load(SAV_PATH))
+df_raw = DataFrame(load(SAV_PATH))
 
-# ╔═╡ 2bc52379-6bf6-4ccf-a418-3c5ca5adfaa0
-CSV.write(CSV_PATH, df)
+# ╔═╡ adc7f08a-36c4-4eb8-9149-40626fca2bac
+md"""
+For more info [see the SHARE dataset](https://share-eric.eu/data/).
+"""
 
 # ╔═╡ 5d3d8370-1ad9-4721-99a9-d17768e8178a
 begin 
@@ -288,17 +315,113 @@ begin
 	dropped_variables = [ "mergeid", "hhid5", "hhid6", "hhid7", "mergeidp5", "mergeidp6", "mergeidp7", "coupleid5", "coupleid6", "coupleid7", "ph008d1", "ph054_", "ph080d1", "ph080d2", "ph080d3", "ph080d4", "ph080d5", "ph080d6", "ph080d7", "ph080d8", "ph080d9", "ph080d10", "ph080d11", "ph080d12", "ph080d13", "ph080d14", "ph080d15", "ph080d16", "ph080d17", "ph080d18", "ph080d19", "ph080d20", "ph080d21", "ph080d22", "ph080dot", "ph087d1", "ph087d2", "ph087d3", "ph087d4", "ph087d5", "ph087d6", "ph087d7", "ph088_", "ph089dno", "ph082_", "initial_euro_d", "euro_d", "ph006d21", "ph049d14", "ph049d15", "ph050_", "ph051_", "ph059d1", "ph059d2", "ph059d3", "ph059d4", "ph059d5", "ph059d6", "ph059d7", "ph059d8", "ph059d9", "ph059d10", "ph059dno", "ph059dot", "ph690d1", "ph690d2", "ph690d3", "ph690d4", "ph745_","ph009_1","ph009_2","ph009_3","ph009_4","ph009_5","ph009_6","ph009_10","ph009_11","ph009_12","ph009_13","ph009_14","ph009_15","ph009_16","ph009_18","ph009_19","ph009_20","ph009_other"]	
 end
 
-# ╔═╡ 804cee56-f1ba-4874-bc09-8b551e927c68
-df2 = select(df, Not(dropped_variables))
+# ╔═╡ d3a4de4f-10c8-4e70-9104-b47364b99179
+md"""
+# Data Sanity Check
+"""
 
-# ╔═╡ 7f422edf-3657-4ad9-9468-1b6d4f8de46e
-rename!(df2, Dict(Symbol(k) => Symbol(v) for (k, v) in attribute_names))
+# ╔═╡ e550be57-eab2-4064-b3fd-2b87c45cecbd
+df = select(df_raw, Not(dropped_variables))
+
+# ╔═╡ 6a09514b-b065-448e-bf78-420c0d6ce6a5
+CSV.write(CSV_PATH, df)
+
+# ╔═╡ 35c37143-19be-4504-a289-6404c794c617
+rename!(df, Dict(Symbol(k) => Symbol(v) for (k, v) in attribute_names))
+
+# ╔═╡ e6228654-1fd3-433d-8cc3-0ebda46e90af
+n_rows, n_cols = size(df)
+
+# ╔═╡ ebdec067-6848-46b5-a3b7-d7e8515146f8
+description = summary_table(df)
+
+# ╔═╡ b7dc3954-e7e2-4064-b96b-0f18ac20fd45
+@bind colname Select(names(df))
+
+# ╔═╡ 44130ea6-884e-45a7-a580-290b09609a49
+run_task(HistogramTask(df[:,colname]))
+
+# ╔═╡ 8d047693-fc98-44da-8ba2-53b43c0ffb88
+@bind perc_missing_col Slider(0:0.05:1, show_value=true)
+
+# ╔═╡ c77ca35d-d91d-440e-85f0-1926ed3848a6
+max_missing_instances = round(Int, perc_missing_col * n_rows);
+
+# ╔═╡ d3718495-98b7-47da-861e-982977b7a4cd
+md"""
+You are filtering the columns with more than the $(round(perc_missing_col*100, digits=2))% of missing values (that is, $(convert(Int,max_missing_instances)) values).
+"""
+
+# ╔═╡ a271df5b-07a9-4580-93f6-e4ae2cac527c
+df_nmc = filter_along_dimension(df, max_missing_instances, dims=:cols);
+
+# ╔═╡ 33a2f102-1a76-49aa-9ec2-39f981a51272
+df_nmc_rows, df_nmc_cols = size(df_nmc)
+
+# ╔═╡ 9d5b8635-8126-4a87-9111-b3970cabf595
+md"""
+Now $(df_nmc_cols) columns remains. 
+"""
+
+# ╔═╡ 9b0d582d-97cc-4015-a554-1933a44f2c35
+@bind perc_missing_row Slider(0:0.01:1, show_value=true)
+
+# ╔═╡ f9fa4262-616a-446e-8f36-1e1f4e057b6d
+max_missing_along_row = round(Int, perc_missing_row * df_nmc_cols);
+
+# ╔═╡ 35e96199-c896-46a7-bc63-0853ba7bbd14
+df_nmrc = filter_along_dimension(df_nmc, max_missing_along_row, dims=:rows);
+
+# ╔═╡ 80bb34be-1be4-4fb4-97e7-4a5640bbd4de
+round(232.232, digits=2)
+
+# ╔═╡ 504e7090-f1b2-4d3e-95ee-8d4799c42bcc
+md"""
+You are filtering the instances containing more than the $(round(perc_missing_row*100, digits=2))% of missing values (that is, $(convert(Int,max_missing_along_row)) columns).
+"""
+
+# ╔═╡ c85c719a-3c99-4c49-b056-ce59535a457f
+df_nmrc_rows, df_nmrc_cols = size(df_nmrc)
+
+# ╔═╡ d1e0a774-4a70-4923-8206-bca327ff27d8
+md"""
+Now, $(df_nmrc_rows) instances remains.
+"""
+
+# ╔═╡ 3094d269-cd3d-46b6-9f32-cb99e19f3cc9
+@bind df_nmrc_colname Select(names(df_nmrc))
+
+# ╔═╡ d09c8f96-74fa-4e98-87b3-080f8d0aae02
+run_task(HistogramTask(df_nmrc[:,df_nmrc_colname]))
 
 # ╔═╡ Cell order:
+# ╟─49733da1-b29a-41cd-a1dd-3d748ca70f97
 # ╠═494947b5-219b-43ad-b29f-56216b3dc639
+# ╟─a6c8a233-8c6f-43b2-a4fd-a0bbc6425d74
 # ╠═e202a63d-b119-47ac-bf70-6516fb29f423
 # ╠═f6b53ccf-85e2-40bd-bef4-6a329b1bf2d4
-# ╠═2bc52379-6bf6-4ccf-a418-3c5ca5adfaa0
+# ╟─adc7f08a-36c4-4eb8-9149-40626fca2bac
 # ╟─5d3d8370-1ad9-4721-99a9-d17768e8178a
-# ╠═804cee56-f1ba-4874-bc09-8b551e927c68
-# ╠═7f422edf-3657-4ad9-9468-1b6d4f8de46e
+# ╠═6a09514b-b065-448e-bf78-420c0d6ce6a5
+# ╟─d3a4de4f-10c8-4e70-9104-b47364b99179
+# ╠═e550be57-eab2-4064-b3fd-2b87c45cecbd
+# ╠═35c37143-19be-4504-a289-6404c794c617
+# ╠═e6228654-1fd3-433d-8cc3-0ebda46e90af
+# ╠═ebdec067-6848-46b5-a3b7-d7e8515146f8
+# ╠═b7dc3954-e7e2-4064-b96b-0f18ac20fd45
+# ╠═44130ea6-884e-45a7-a580-290b09609a49
+# ╠═8d047693-fc98-44da-8ba2-53b43c0ffb88
+# ╠═c77ca35d-d91d-440e-85f0-1926ed3848a6
+# ╠═d3718495-98b7-47da-861e-982977b7a4cd
+# ╠═a271df5b-07a9-4580-93f6-e4ae2cac527c
+# ╠═33a2f102-1a76-49aa-9ec2-39f981a51272
+# ╟─9d5b8635-8126-4a87-9111-b3970cabf595
+# ╠═9b0d582d-97cc-4015-a554-1933a44f2c35
+# ╠═f9fa4262-616a-446e-8f36-1e1f4e057b6d
+# ╠═35e96199-c896-46a7-bc63-0853ba7bbd14
+# ╠═80bb34be-1be4-4fb4-97e7-4a5640bbd4de
+# ╟─504e7090-f1b2-4d3e-95ee-8d4799c42bcc
+# ╠═c85c719a-3c99-4c49-b056-ce59535a457f
+# ╟─d1e0a774-4a70-4923-8206-bca327ff27d8
+# ╠═3094d269-cd3d-46b6-9f32-cb99e19f3cc9
+# ╠═d09c8f96-74fa-4e98-87b3-080f8d0aae02
