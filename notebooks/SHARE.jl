@@ -474,6 +474,79 @@ begin
 	)
 end
 
+# ╔═╡ 6d407c8a-33e9-4259-94d1-3a566ebd5982
+md"""
+# VarianceFilter and ThresholdLimiter
+"""
+
+# ╔═╡ 7dd7bc9d-2547-4b8c-a85e-a77dc8436493
+numeric_df = begin
+	# I want only numeric columns because it's possible to compute variance only for continuous data
+	numeric_columns = [name for (name, col) in zip(names(df_clean), eachcol(df_clean)) if eltype(col) <: Union{Missing,<:Real}]
+
+	# I select only the columns without missing values 
+	clean_numeric_cols = [col for col in numeric_columns if !any(ismissing, df_clean[!, col])]
+
+	numeric_df = df_clean[:, clean_numeric_cols]
+
+	# We convert to Float64 to obtain homogeneous numeric data suitable for computations, removing the mixed types (Missing or Real) inherited from df_clean
+	Float64.(numeric_df)
+end
+
+# ╔═╡ 5add832a-3008-4a1f-92c6-312dd373f97c
+# We use VarianceFilter to computer variance for each columns in the dataset
+filter = SoleFeatures.VarianceFilter(Matrix(numeric_df))
+
+# ╔═╡ 634479c7-ee53-4eef-a582-7cdf29aeb6bf
+filter_ranks = get_rank(filter)
+
+# ╔═╡ 9f0edd1d-10e4-49f0-bef2-a71852c75528
+filter_scores = get_score(filter)
+
+# ╔═╡ 9651fcbd-1eca-474d-b1ad-ac63fd6f4a54
+# We introduce the concept of a limiter to remove all features whose variance falls below a specified threshold.
+limiter = SoleFeatures.ThresholdLimiter(filter; ordf=(>=), threshold=0.2)
+
+# ╔═╡ d6834c76-a1c3-4ede-935d-4f4479dca1e9
+ranks = get_rank(limiter)
+
+# ╔═╡ 83eec134-82a4-424f-8277-0bd067170bf5
+# Now we select only the columns that have a significant variance
+df_with_significant_variance = numeric_df[:,ranks]
+
+# ╔═╡ ce2352b4-ca0c-4889-a0c3-1e27ec856766
+md"""
+# A way to approach with an outlier
+"""
+
+# ╔═╡ ff58ba81-5a8c-44ee-95aa-2f536eac56fb
+# For this example we want to study the distribution of the age
+original_age = df_with_significant_variance[:,"age"]
+
+# ╔═╡ 55ecfaba-d692-4411-b7e3-f6a88f4dc025
+without_outliers_age_zscore = begin
+	outlier_result_zscore = SoleFeatures.zscore_outliers(original_age)
+	original_age[Not(SoleFeatures.outlier_indices(outlier_result_zscore))]
+end
+
+# ╔═╡ b35535b1-1f38-449c-abbf-845eb001b149
+run_task(MultiTask([
+	BoxplotTask(original_age; params=(title="With outliers",)),
+	BoxplotTask(without_outliers_age_zscore; params=(title="Without outliers",))
+]))
+
+# ╔═╡ 01225039-468d-40b6-a6f1-b5db98ee2b13
+without_outliers_age_iqr = begin
+	outlier_result_iqr = SoleFeatures.iqr_outliers(original_age)
+	original_age[Not(SoleFeatures.outlier_indices(outlier_result_iqr))]
+end
+
+# ╔═╡ d75e9e5b-1d26-4656-bffa-facbcb24c5fa
+run_task(MultiTask([
+	BoxplotTask(original_age; params=(title="With outliers",)),
+	BoxplotTask(without_outliers_age_iqr; params=(title="Without outliers",))
+]))
+
 # ╔═╡ 1e8b58a2-d470-49ed-aa23-f7eecb6f00cb
 md"""
 # TODO: Remove useless distributions
@@ -531,4 +604,18 @@ Statistics for removing a certain column.
 # ╠═98bd33fc-526e-45c7-bbb6-ad67abe05838
 # ╠═fe25627e-3fbf-462c-a0aa-82d0179cd9bb
 # ╠═6243c7c3-8d9f-40a7-9276-bf80c92bd242
+# ╟─6d407c8a-33e9-4259-94d1-3a566ebd5982
+# ╠═7dd7bc9d-2547-4b8c-a85e-a77dc8436493
+# ╠═5add832a-3008-4a1f-92c6-312dd373f97c
+# ╠═634479c7-ee53-4eef-a582-7cdf29aeb6bf
+# ╠═9f0edd1d-10e4-49f0-bef2-a71852c75528
+# ╠═9651fcbd-1eca-474d-b1ad-ac63fd6f4a54
+# ╠═d6834c76-a1c3-4ede-935d-4f4479dca1e9
+# ╠═83eec134-82a4-424f-8277-0bd067170bf5
+# ╟─ce2352b4-ca0c-4889-a0c3-1e27ec856766
+# ╠═ff58ba81-5a8c-44ee-95aa-2f536eac56fb
+# ╠═55ecfaba-d692-4411-b7e3-f6a88f4dc025
+# ╠═b35535b1-1f38-449c-abbf-845eb001b149
+# ╠═01225039-468d-40b6-a6f1-b5db98ee2b13
+# ╠═d75e9e5b-1d26-4656-bffa-facbcb24c5fa
 # ╠═1e8b58a2-d470-49ed-aa23-f7eecb6f00cb
