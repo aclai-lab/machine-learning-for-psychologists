@@ -32,11 +32,17 @@ begin
 	using StatFiles
 	using FileIO
 
-	using SoleFeatures
-	using DataTreatments
-
+	# SOLE ________________________________________
+	# decisiontree | decisionlist -> SOLELEARN    |
+	# solelogics 		-> SOLERESONER 		      |->SOLEPOSTHOC
+	
+	using SoleFeatures 		# plots.jl 
+	using DataTreatments 	# non labbiamo usato 			
 	include(joinpath(@__DIR__, "..", "utils", "filters.jl"))
 end
+
+# ╔═╡ da2cef96-d07a-42ef-9cfa-0df81424213a
+using Serialization
 
 # ╔═╡ 49733da1-b29a-41cd-a1dd-3d748ca70f97
 md"""
@@ -510,19 +516,41 @@ df_ent_filter = filter_by_entropy(df_freq_filter, names(df_freq_filter); entropy
 size(df_ent_filter)
 
 # ╔═╡ 4df2d89d-535c-44e0-9214-166488734bb1
-df_typed = cast_columns(df_ent_filter; cast_threshold=15)
+df_typed = cast_columns(df_ent_filter; cast_threshold=30)
 
 # ╔═╡ 9943064f-b0fd-4a7d-958e-be9cfdc70b7c
 df_typed[1, "gender"]
 
+# ╔═╡ f003e809-f161-4a3d-a5ee-29274de832c3
+categorical_names = [] 
+
+# ╔═╡ 744af9df-a615-43a7-8003-836a3bf482a1
+numeric_attributes = []
+
 # ╔═╡ d9f671c5-d194-43e2-8bb8-9a5eef7b8f1d
 for name in names(df_typed)
 	if df_typed[1,name] isa CategoricalValue
+		push!(categorical_names,name)
 		println("Categorical: $(name)")
 	else
+		push!(numeric_attributes,name)
 		println("Numeric: $(name)")
 	end
 end
+
+# ╔═╡ 8019cb0e-f560-4c80-a0cd-13061fe08d84
+begin
+	entropies = Dict(name => entropy(df_typed[:, name]) for name in categorical_names)
+	
+	sorted_entropies = sort(collect(entropies), by = x -> -x[2])
+	println("Top informative columns by entropy:")
+	for (col, ent) in sorted_entropies[1:10]
+	    println("$col → $ent")
+	end
+end
+
+# ╔═╡ 313f4c84-5d29-4b41-a638-043ace8f31a3
+numeric_attributes
 
 # ╔═╡ 6d407c8a-33e9-4259-94d1-3a566ebd5982
 md"""
@@ -532,10 +560,13 @@ md"""
 # ╔═╡ 12ba5290-2100-4d2c-85ad-af1f5ab3aa98
 LocalResource("../images/standard_deviation_diagram.png")
 
+# ╔═╡ 18f675bf-9aff-4809-a3c7-f6d36c9527d9
+@bind name_of_numeric_attribute Select(numeric_attributes)
+
 # ╔═╡ 94eadd14-2445-4ecc-a678-e8fc981674d8
 # each age falls in a certain point of the distribution above
 begin
-	age_column = df_typed[:, "age"]
+	age_column = df_typed[:, name_of_numeric_attribute]
 	mu = mean(age_column)
 	sigma = std(age_column)
 	
@@ -543,41 +574,54 @@ begin
 end
 
 # ╔═╡ 961e6925-f9ba-49ca-b58f-46a235fd6295
-maximum(df_typed[:, "age"])
+maximum(df_typed[:, name_of_numeric_attribute])
 
 # ╔═╡ d88e83ce-a1d5-4b6d-9f49-061a307dbee4
-@bind age_z_score Slider(0:0.05:4, show_value=true, default=1.65)
+@bind z_score Slider(0.01:0.05:4, show_value=true, default=1.65)
 
 # ╔═╡ d5851387-9ceb-41ca-9e7a-e4064080e8cb
-df_naout = filter_along_dimension(
-	df_typed, 1; 
-	dims=:rows,
-	property=(x -> abs((x - mu) / sigma) > age_z_score), 
-	colnames=["age"]
-);
+begin
+	df_naout = []
+	for colly in numeric_attributes
+
+		colly_column = df_typed[:, colly]
+		mu = mean(colly_column)
+		sigma = std(colly_column)
+		
+		z = (colly_column .- mu) ./ sigma
+		
+		df_naout = filter_along_dimension(
+			df_typed, 1; 
+			dims=:rows,
+			property=(x -> abs((x - mu) / sigma) > z_score), 
+			colnames=[colly]
+		);
+	end 
+end
+
+# ╔═╡ 0886e467-ad9f-4734-aa4e-418783f93719
+df_naout
 
 # ╔═╡ 8ce43c96-8d64-4faf-8185-79149c525c7f
 run_task(MultiTask([
-	HistogramTask(df_typed[:,"age"]; params=(title="Age distribution",)),
-	HistogramTask(df_naout[:,"age"]; params=(title="Age within $(age_z_score) percentiles",))
+	HistogramTask(df_typed[:,name_of_numeric_attribute]; params=(title="attribute distribution",)),
+	HistogramTask(df_naout[:,name_of_numeric_attribute]; params=(title="attribute within $(z_score) percentiles",))
 ]))
 
-# ╔═╡ 5ac7abad-d47b-4551-b0e3-1275d3b265c8
-categorical_names = setdiff(names(df_naout), ["age"])
-
-# ╔═╡ d6c69395-a178-4265-a948-fd779d81b9a8
-# SoleFeatures: ChiSquared filter could be added
-# SoleFeatures: supLaplacian score filter
-
-# ╔═╡ ce2352b4-ca0c-4889-a0c3-1e27ec856766
+# ╔═╡ 9eee2f67-92b8-48c2-b502-73efa704562c
 md"""
-# A way to approach with an outlier
+# Learning 
+in the next lesson
 """
 
-# ╔═╡ 1e8b58a2-d470-49ed-aa23-f7eecb6f00cb
-md"""
-# TODO: Wrapper Filters
-"""
+# ╔═╡ b391021e-719e-412f-b13d-637fc5bcbe0c
+SERIALIZE_PATH = joinpath(DATA_PATH,"share_clean.jls")
+
+# ╔═╡ b2a9136f-3cd5-4f7c-b3af-56a314a7971e
+mkpath(SERIALIZE_PATH)
+
+# ╔═╡ 20e435bd-fa83-4dfc-9c91-bae4a97478fd
+Serialization.serialize(SERIALIZE_PATH,df_naout)
 
 # ╔═╡ Cell order:
 # ╟─49733da1-b29a-41cd-a1dd-3d748ca70f97
@@ -630,15 +674,22 @@ md"""
 # ╠═9abf6b58-c702-4c9f-bbf2-121a98a1054b
 # ╠═4df2d89d-535c-44e0-9214-166488734bb1
 # ╠═9943064f-b0fd-4a7d-958e-be9cfdc70b7c
+# ╠═f003e809-f161-4a3d-a5ee-29274de832c3
+# ╠═744af9df-a615-43a7-8003-836a3bf482a1
 # ╠═d9f671c5-d194-43e2-8bb8-9a5eef7b8f1d
+# ╠═8019cb0e-f560-4c80-a0cd-13061fe08d84
+# ╠═313f4c84-5d29-4b41-a638-043ace8f31a3
 # ╟─6d407c8a-33e9-4259-94d1-3a566ebd5982
-# ╠═12ba5290-2100-4d2c-85ad-af1f5ab3aa98
+# ╟─12ba5290-2100-4d2c-85ad-af1f5ab3aa98
+# ╠═18f675bf-9aff-4809-a3c7-f6d36c9527d9
 # ╠═94eadd14-2445-4ecc-a678-e8fc981674d8
 # ╠═961e6925-f9ba-49ca-b58f-46a235fd6295
 # ╠═d88e83ce-a1d5-4b6d-9f49-061a307dbee4
 # ╠═d5851387-9ceb-41ca-9e7a-e4064080e8cb
+# ╠═0886e467-ad9f-4734-aa4e-418783f93719
 # ╠═8ce43c96-8d64-4faf-8185-79149c525c7f
-# ╠═5ac7abad-d47b-4551-b0e3-1275d3b265c8
-# ╠═d6c69395-a178-4265-a948-fd779d81b9a8
-# ╟─ce2352b4-ca0c-4889-a0c3-1e27ec856766
-# ╟─1e8b58a2-d470-49ed-aa23-f7eecb6f00cb
+# ╟─9eee2f67-92b8-48c2-b502-73efa704562c
+# ╠═da2cef96-d07a-42ef-9cfa-0df81424213a
+# ╠═b391021e-719e-412f-b13d-637fc5bcbe0c
+# ╠═b2a9136f-3cd5-4f7c-b3af-56a314a7971e
+# ╠═20e435bd-fa83-4dfc-9c91-bae4a97478fd
