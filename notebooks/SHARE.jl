@@ -24,6 +24,8 @@ begin
 	using Plots
 	using StatsPlots
 	using CSV
+	using CategoricalArrays
+	using Statistics
 	using DataFrames
 	using StatFiles
 	using FileIO
@@ -319,7 +321,7 @@ end
 
 # ╔═╡ d3a4de4f-10c8-4e70-9104-b47364b99179
 md"""
-# Data Sanity Check
+# Data Exploration
 """
 
 # ╔═╡ e550be57-eab2-4064-b3fd-2b87c45cecbd
@@ -372,6 +374,8 @@ Now $(df_nmc_cols) columns remains.
 max_missing_along_row = round(Int, perc_missing_row * df_nmc_cols);
 
 # ╔═╡ f101f661-dfc5-4b05-bbcf-04b72c8091bf
+# TODO: when writing the documentation, specify that this refers to the baseline euro_d, which is different from the follow-up euro_d;
+# baseline means "the situation from which I am starting".
 df_nmc[:,"initial_euro_d"]
 
 # ╔═╡ 35e96199-c896-46a7-bc63-0853ba7bbd14
@@ -474,23 +478,90 @@ begin
 	)
 end
 
+# ╔═╡ 4df2d89d-535c-44e0-9214-166488734bb1
+df_typed = cast_columns(df_clean)
+
+# ╔═╡ 9943064f-b0fd-4a7d-958e-be9cfdc70b7c
+df_typed[1, "gender"]
+
+# ╔═╡ d9f671c5-d194-43e2-8bb8-9a5eef7b8f1d
+for name in names(df_typed)
+	if df_typed[1,name] isa CategoricalValue
+		println("Categorical: $(name)")
+	else
+		println("Numeric: $(name)")
+	end
+end
+
 # ╔═╡ 6d407c8a-33e9-4259-94d1-3a566ebd5982
 md"""
 # VarianceFilter and ThresholdLimiter
 """
 
+# ╔═╡ 12ba5290-2100-4d2c-85ad-af1f5ab3aa98
+LocalResource("../images/standard_deviation_diagram.png")
+
+# ╔═╡ 94eadd14-2445-4ecc-a678-e8fc981674d8
+# each age falls in a certain point of the distribution above
+begin
+	age_column = df_typed[:, "age"]
+	mu = mean(age_column)
+	sigma = std(age_column)
+	
+	z = (age_column .- mu) ./ sigma
+end
+
+# ╔═╡ 961e6925-f9ba-49ca-b58f-46a235fd6295
+maximum(df_typed[:, "age"])
+
+# ╔═╡ d88e83ce-a1d5-4b6d-9f49-061a307dbee4
+@bind age_z_score Slider(0:0.05:4, show_value=true, default=1.65)
+
+# ╔═╡ d5851387-9ceb-41ca-9e7a-e4064080e8cb
+df_naout = filter_along_dimension(
+	df_typed, 1; 
+	dims=:rows,
+	property=(x -> abs((x - mu) / sigma) > age_z_score), 
+	colnames=["age"]
+);
+
+# ╔═╡ 8ce43c96-8d64-4faf-8185-79149c525c7f
+run_task(MultiTask([
+	HistogramTask(df_typed[:,"age"]; params=(title="Age distribution",)),
+	HistogramTask(df_naout[:,"age"]; params=(title="Age within $(age_z_score) percentiles",))
+]))
+
+# ╔═╡ 797b2afc-1005-45e4-9ed4-55f5bf855c14
+# matrix_imputed = get_tabular(
+# 	load_dataset(
+# 	    df_clean,
+# 	    TreatmentGroup(
+# 	        dims=0,
+# 	        impute=(LOCF(), NOCB()),
+# 	        datatype=:discrete
+# 	    ),
+# 	    TreatmentGroup(
+# 	        dims=0,
+# 	        impute=(SVD(),),
+# 	        datatype=:continuous
+# 	    )
+# 	)
+# )
+
+# ╔═╡ dddac499-fb5b-45fe-ae02-6a3807216b65
+df_imputed = DataFrame(matrix_imputed[1], matrix_imputed[2])
+
 # ╔═╡ 7dd7bc9d-2547-4b8c-a85e-a77dc8436493
-numeric_df = begin
+df_continuous = begin
 	# I want only numeric columns because it's possible to compute variance only for continuous data
-	numeric_columns = [name for (name, col) in zip(names(df_clean), eachcol(df_clean)) if eltype(col) <: Union{Missing,<:Real}]
+	numeric_columns = [
+		name for (name, col) 
+		in zip(names(df_imputed), eachcol(df_imputed)) 
+	]
 
-	# I select only the columns without missing values 
-	clean_numeric_cols = [col for col in numeric_columns if !any(ismissing, df_clean[!, col])]
+	print(numeric_columns)
 
-	numeric_df = df_clean[:, clean_numeric_cols]
-
-	# We convert to Float64 to obtain homogeneous numeric data suitable for computations, removing the mixed types (Missing or Real) inherited from df_clean
-	Float64.(numeric_df)
+	df_imputed[:, numeric_columns]
 end
 
 # ╔═╡ 5add832a-3008-4a1f-92c6-312dd373f97c
@@ -513,6 +584,10 @@ ranks = get_rank(limiter)
 # ╔═╡ 83eec134-82a4-424f-8277-0bd067170bf5
 # Now we select only the columns that have a significant variance
 df_with_significant_variance = numeric_df[:,ranks]
+
+# ╔═╡ d6c69395-a178-4265-a948-fd779d81b9a8
+# SoleFeatures: ChiSquared filter could be added
+# SoleFeatures: supLaplacian score filter
 
 # ╔═╡ ce2352b4-ca0c-4889-a0c3-1e27ec856766
 md"""
@@ -604,7 +679,18 @@ Statistics for removing a certain column.
 # ╠═98bd33fc-526e-45c7-bbb6-ad67abe05838
 # ╠═fe25627e-3fbf-462c-a0aa-82d0179cd9bb
 # ╠═6243c7c3-8d9f-40a7-9276-bf80c92bd242
+# ╠═4df2d89d-535c-44e0-9214-166488734bb1
+# ╠═9943064f-b0fd-4a7d-958e-be9cfdc70b7c
+# ╠═d9f671c5-d194-43e2-8bb8-9a5eef7b8f1d
 # ╟─6d407c8a-33e9-4259-94d1-3a566ebd5982
+# ╠═12ba5290-2100-4d2c-85ad-af1f5ab3aa98
+# ╠═94eadd14-2445-4ecc-a678-e8fc981674d8
+# ╠═961e6925-f9ba-49ca-b58f-46a235fd6295
+# ╠═d88e83ce-a1d5-4b6d-9f49-061a307dbee4
+# ╠═d5851387-9ceb-41ca-9e7a-e4064080e8cb
+# ╠═8ce43c96-8d64-4faf-8185-79149c525c7f
+# ╠═797b2afc-1005-45e4-9ed4-55f5bf855c14
+# ╠═dddac499-fb5b-45fe-ae02-6a3807216b65
 # ╠═7dd7bc9d-2547-4b8c-a85e-a77dc8436493
 # ╠═5add832a-3008-4a1f-92c6-312dd373f97c
 # ╠═634479c7-ee53-4eef-a582-7cdf29aeb6bf
@@ -612,6 +698,7 @@ Statistics for removing a certain column.
 # ╠═9651fcbd-1eca-474d-b1ad-ac63fd6f4a54
 # ╠═d6834c76-a1c3-4ede-935d-4f4479dca1e9
 # ╠═83eec134-82a4-424f-8277-0bd067170bf5
+# ╠═d6c69395-a178-4265-a948-fd779d81b9a8
 # ╟─ce2352b4-ca0c-4889-a0c3-1e27ec856766
 # ╠═ff58ba81-5a8c-44ee-95aa-2f536eac56fb
 # ╠═55ecfaba-d692-4411-b7e3-f6a88f4dc025
