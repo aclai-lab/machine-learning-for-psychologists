@@ -1,5 +1,6 @@
 using DataFrames
 using CategoricalArrays
+using StatsBase
 
 """
 TODO: document
@@ -31,7 +32,48 @@ function filter_along_dimension(
     end
 end
 
-function cast_columns(df; cat_threshold=10)
+function filter_by_frequency(df, column_names; frequency_threshold=0.6)
+    to_drop = []
+
+    for c in column_names
+        count_dictionary = Dict()
+
+        for v in df[:, c]
+            count_dictionary[v] = get(count_dictionary, v, 0) + 1
+        end
+
+        freq = maximum([count_dictionary[k] for k in keys(count_dictionary)]) / length(df[:, c])
+
+        if freq >= frequency_threshold
+            push!(to_drop, c)
+        end
+    end
+    
+    return select(df, Not(to_drop))
+end
+
+function entropy(col)
+    counts = countmap(col)
+    n = length(col)
+    ps = values(counts) ./ n
+    return -sum(p -> p == 0 ? 0.0 : p * log(p), ps)
+end
+
+function filter_by_entropy(df, column_names; entropy_threshold=0.5)
+    to_drop = []
+
+    for c in column_names
+        H = entropy(df[!, c])
+
+        if H < entropy_threshold
+            push!(to_drop, c)
+        end
+    end
+
+    return select(df, Not(to_drop))
+end
+
+function cast_columns(df; cast_threshold=10)
     for col in names(df)
         x = df[!, col]
 
@@ -39,7 +81,7 @@ function cast_columns(df; cat_threshold=10)
             df[!, col] = categorical(x)
         elseif eltype(x) <: Real
             # if there are a few unique values, then this is categorical
-            if length(unique(x)) <= cat_threshold
+            if length(unique(x)) <= cast_threshold
                 df[!, col] = categorical(x)
             else
                 df[!, col] = Float64.(x)

@@ -26,6 +26,8 @@ begin
 	using CSV
 	using CategoricalArrays
 	using Statistics
+	using StatsBase
+	using Impute
 	using DataFrames
 	using StatFiles
 	using FileIO
@@ -478,8 +480,37 @@ begin
 	)
 end
 
+# ╔═╡ fb5b262b-c8f3-44ed-8c3d-96fb20ad227a
+# TODO: si potrebbero anche utilizzare strategie più sofisticate;
+# e.g., impute con valore numerico costante oppure con campionamento casuale
+@bind impute_strategy Select([Impute.mode])
+
+# ╔═╡ 14fc7835-c63f-406e-984f-d5279640bf8e
+for col in names(df_clean)
+	mode_val = impute_strategy(df_clean[!, col])
+    df_clean[!, col] = coalesce.(df_clean[!, col], mode_val)
+end
+
+# ╔═╡ 9bb12323-c3d8-4a40-a076-cf3c35fab32d
+@bind frequency_threshold Slider(0:0.05:1, show_value=true, default=0.6)
+
+# ╔═╡ 9bd07589-0e70-401a-aabd-11772b32aa34
+df_freq_filter = filter_by_frequency(df_clean, names(df_clean); frequency_threshold=frequency_threshold)
+
+# ╔═╡ 7d9670d1-24d9-43ba-b0c5-90dbcd526f99
+@bind entropy_threshold Slider(0:0.05:1, show_value=true, default=0.5)
+
+# ╔═╡ 73673f42-49cc-442c-b621-2a68b237c870
+size(df_freq_filter)
+
+# ╔═╡ 614c9e71-fa66-4f9d-b881-31c9b36d1f2d
+df_ent_filter = filter_by_entropy(df_freq_filter, names(df_freq_filter); entropy_threshold=entropy_threshold)
+
+# ╔═╡ 9abf6b58-c702-4c9f-bbf2-121a98a1054b
+size(df_ent_filter)
+
 # ╔═╡ 4df2d89d-535c-44e0-9214-166488734bb1
-df_typed = cast_columns(df_clean)
+df_typed = cast_columns(df_ent_filter; cast_threshold=15)
 
 # ╔═╡ 9943064f-b0fd-4a7d-958e-be9cfdc70b7c
 df_typed[1, "gender"]
@@ -531,59 +562,8 @@ run_task(MultiTask([
 	HistogramTask(df_naout[:,"age"]; params=(title="Age within $(age_z_score) percentiles",))
 ]))
 
-# ╔═╡ 797b2afc-1005-45e4-9ed4-55f5bf855c14
-# matrix_imputed = get_tabular(
-# 	load_dataset(
-# 	    df_clean,
-# 	    TreatmentGroup(
-# 	        dims=0,
-# 	        impute=(LOCF(), NOCB()),
-# 	        datatype=:discrete
-# 	    ),
-# 	    TreatmentGroup(
-# 	        dims=0,
-# 	        impute=(SVD(),),
-# 	        datatype=:continuous
-# 	    )
-# 	)
-# )
-
-# ╔═╡ dddac499-fb5b-45fe-ae02-6a3807216b65
-df_imputed = DataFrame(matrix_imputed[1], matrix_imputed[2])
-
-# ╔═╡ 7dd7bc9d-2547-4b8c-a85e-a77dc8436493
-df_continuous = begin
-	# I want only numeric columns because it's possible to compute variance only for continuous data
-	numeric_columns = [
-		name for (name, col) 
-		in zip(names(df_imputed), eachcol(df_imputed)) 
-	]
-
-	print(numeric_columns)
-
-	df_imputed[:, numeric_columns]
-end
-
-# ╔═╡ 5add832a-3008-4a1f-92c6-312dd373f97c
-# We use VarianceFilter to computer variance for each columns in the dataset
-filter = SoleFeatures.VarianceFilter(Matrix(numeric_df))
-
-# ╔═╡ 634479c7-ee53-4eef-a582-7cdf29aeb6bf
-filter_ranks = get_rank(filter)
-
-# ╔═╡ 9f0edd1d-10e4-49f0-bef2-a71852c75528
-filter_scores = get_score(filter)
-
-# ╔═╡ 9651fcbd-1eca-474d-b1ad-ac63fd6f4a54
-# We introduce the concept of a limiter to remove all features whose variance falls below a specified threshold.
-limiter = SoleFeatures.ThresholdLimiter(filter; ordf=(>=), threshold=0.2)
-
-# ╔═╡ d6834c76-a1c3-4ede-935d-4f4479dca1e9
-ranks = get_rank(limiter)
-
-# ╔═╡ 83eec134-82a4-424f-8277-0bd067170bf5
-# Now we select only the columns that have a significant variance
-df_with_significant_variance = numeric_df[:,ranks]
+# ╔═╡ 5ac7abad-d47b-4551-b0e3-1275d3b265c8
+categorical_names = setdiff(names(df_naout), ["age"])
 
 # ╔═╡ d6c69395-a178-4265-a948-fd779d81b9a8
 # SoleFeatures: ChiSquared filter could be added
@@ -594,47 +574,8 @@ md"""
 # A way to approach with an outlier
 """
 
-# ╔═╡ ff58ba81-5a8c-44ee-95aa-2f536eac56fb
-# For this example we want to study the distribution of the age
-original_age = df_with_significant_variance[:,"age"]
-
-# ╔═╡ 55ecfaba-d692-4411-b7e3-f6a88f4dc025
-without_outliers_age_zscore = begin
-	outlier_result_zscore = SoleFeatures.zscore_outliers(original_age)
-	original_age[Not(SoleFeatures.outlier_indices(outlier_result_zscore))]
-end
-
-# ╔═╡ b35535b1-1f38-449c-abbf-845eb001b149
-run_task(MultiTask([
-	BoxplotTask(original_age; params=(title="With outliers",)),
-	BoxplotTask(without_outliers_age_zscore; params=(title="Without outliers",))
-]))
-
-# ╔═╡ 01225039-468d-40b6-a6f1-b5db98ee2b13
-without_outliers_age_iqr = begin
-	outlier_result_iqr = SoleFeatures.iqr_outliers(original_age)
-	original_age[Not(SoleFeatures.outlier_indices(outlier_result_iqr))]
-end
-
-# ╔═╡ d75e9e5b-1d26-4656-bffa-facbcb24c5fa
-run_task(MultiTask([
-	BoxplotTask(original_age; params=(title="With outliers",)),
-	BoxplotTask(without_outliers_age_iqr; params=(title="Without outliers",))
-]))
-
 # ╔═╡ 1e8b58a2-d470-49ed-aa23-f7eecb6f00cb
 md"""
-# TODO: Remove useless distributions
-Remove attributes with just one value.
-
-# TODO: VarianceFilter 
-Keep only those with variance higher than a threshold.
-
-# TODO: Limiter
-Statistics for removing a certain column.
-
-# TODO: outlier (remove pre and after a certain percentile)
-
 # TODO: Wrapper Filters
 """
 
@@ -679,6 +620,14 @@ Statistics for removing a certain column.
 # ╠═98bd33fc-526e-45c7-bbb6-ad67abe05838
 # ╠═fe25627e-3fbf-462c-a0aa-82d0179cd9bb
 # ╠═6243c7c3-8d9f-40a7-9276-bf80c92bd242
+# ╠═fb5b262b-c8f3-44ed-8c3d-96fb20ad227a
+# ╠═14fc7835-c63f-406e-984f-d5279640bf8e
+# ╠═9bb12323-c3d8-4a40-a076-cf3c35fab32d
+# ╠═9bd07589-0e70-401a-aabd-11772b32aa34
+# ╠═7d9670d1-24d9-43ba-b0c5-90dbcd526f99
+# ╠═73673f42-49cc-442c-b621-2a68b237c870
+# ╠═614c9e71-fa66-4f9d-b881-31c9b36d1f2d
+# ╠═9abf6b58-c702-4c9f-bbf2-121a98a1054b
 # ╠═4df2d89d-535c-44e0-9214-166488734bb1
 # ╠═9943064f-b0fd-4a7d-958e-be9cfdc70b7c
 # ╠═d9f671c5-d194-43e2-8bb8-9a5eef7b8f1d
@@ -689,20 +638,7 @@ Statistics for removing a certain column.
 # ╠═d88e83ce-a1d5-4b6d-9f49-061a307dbee4
 # ╠═d5851387-9ceb-41ca-9e7a-e4064080e8cb
 # ╠═8ce43c96-8d64-4faf-8185-79149c525c7f
-# ╠═797b2afc-1005-45e4-9ed4-55f5bf855c14
-# ╠═dddac499-fb5b-45fe-ae02-6a3807216b65
-# ╠═7dd7bc9d-2547-4b8c-a85e-a77dc8436493
-# ╠═5add832a-3008-4a1f-92c6-312dd373f97c
-# ╠═634479c7-ee53-4eef-a582-7cdf29aeb6bf
-# ╠═9f0edd1d-10e4-49f0-bef2-a71852c75528
-# ╠═9651fcbd-1eca-474d-b1ad-ac63fd6f4a54
-# ╠═d6834c76-a1c3-4ede-935d-4f4479dca1e9
-# ╠═83eec134-82a4-424f-8277-0bd067170bf5
+# ╠═5ac7abad-d47b-4551-b0e3-1275d3b265c8
 # ╠═d6c69395-a178-4265-a948-fd779d81b9a8
 # ╟─ce2352b4-ca0c-4889-a0c3-1e27ec856766
-# ╠═ff58ba81-5a8c-44ee-95aa-2f536eac56fb
-# ╠═55ecfaba-d692-4411-b7e3-f6a88f4dc025
-# ╠═b35535b1-1f38-449c-abbf-845eb001b149
-# ╠═01225039-468d-40b6-a6f1-b5db98ee2b13
-# ╠═d75e9e5b-1d26-4656-bffa-facbcb24c5fa
-# ╠═1e8b58a2-d470-49ed-aa23-f7eecb6f00cb
+# ╟─1e8b58a2-d470-49ed-aa23-f7eecb6f00cb
