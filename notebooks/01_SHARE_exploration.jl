@@ -20,20 +20,29 @@ end
 begin
 	import Pkg
 	Pkg.activate(Base.current_project(@__DIR__))
-	using PlutoUI
-	using Plots
-	using StatsPlots
+
+	# necessary to read and write the dataset from binary .sav files
+	using FileIO
+	using StatFiles
+	using Serialization
+	
+	# libraries for supporting various data encodings
 	using CSV
+	using DataFrames
 	using CategoricalArrays
+
+	# general utilities for data exploration and values imputation
 	using Statistics
 	using StatsBase
 	using Impute
-	using DataFrames
-	using StatFiles
-	using FileIO
+
+	# our own utilities for cleaning data!
 	include(joinpath(@__DIR__, "..", "utils", "filters.jl"));
 
-	using Serialization
+	# for the interactive Pluto's environment and plotting
+	using PlutoUI
+	using Plots
+	using StatsPlots	
 end
 
 # ╔═╡ 49733da1-b29a-41cd-a1dd-3d748ca70f97
@@ -44,15 +53,31 @@ md"""
 # ╔═╡ a6c8a233-8c6f-43b2-a4fd-a0bbc6425d74
 md"""
 # Data Loading
+
+In this section, we are going to load the raw data collected by Murri et. al., as described in their work [Risk Prediction Models for Depression in Community-Dwelling Older Adults](https://www.ajgponline.org/article/S1064-7481(22)00435-3/abstract). 
+
+The data was collected with the final goal of developing machine-learning predictors for late-life depression, including demographic characteristics, health-related factors, disability and individual depressive symptoms.
+
+In particular, here we are dealing with data from wave 5 (collected in 2013), consisting of baseline and retrospective information, and outcome data from wave 6 (collected in 2015). 
+"""
+
+# ╔═╡ e11b7142-8349-452e-9f8c-aaf006d90790
+md"""
+!!! tip
+	In the cell below we define the *filepath* of the binary data to read, `SAV_PATH`, and the filepath where the human-readable CSV version must be saved, `CSV_PATH`.
+
+	To do so, we leverage the `joinpath` funtcion and the `@__DIR__` shortcut; these are crucial to guarantee the reproducibility of your data analysis!
+
+	Try to leverage the documentation of Julia to learn about them (click *Live docs* in the bottom-right corner).
 """
 
 # ╔═╡ e202a63d-b119-47ac-bf70-6516fb29f423
 begin
-	DATASET_FOLDER = joinpath(@__DIR__, "..", "datasets")
+	DATASET_FOLDER = joinpath(@__DIR__, "..", "datasets");
 	
-	DATA_PATH = joinpath(DATASET_FOLDER, "not_onco_combined_dataset")
-	SAV_PATH = "$(DATA_PATH).sav"
-	CSV_PATH = "$(DATA_PATH).csv"
+	DATA_PATH = joinpath(DATASET_FOLDER, "not_onco_combined_dataset");
+	SAV_PATH = "$(DATA_PATH).sav";
+	CSV_PATH = "$(DATA_PATH).csv";
 end
 
 # ╔═╡ f6b53ccf-85e2-40bd-bef4-6a329b1bf2d4
@@ -546,6 +571,7 @@ serialize(SERIALIZE_PATH, df_naout)
 # ╟─49733da1-b29a-41cd-a1dd-3d748ca70f97
 # ╠═494947b5-219b-43ad-b29f-56216b3dc639
 # ╟─a6c8a233-8c6f-43b2-a4fd-a0bbc6425d74
+# ╟─e11b7142-8349-452e-9f8c-aaf006d90790
 # ╠═e202a63d-b119-47ac-bf70-6516fb29f423
 # ╠═f6b53ccf-85e2-40bd-bef4-6a329b1bf2d4
 # ╟─adc7f08a-36c4-4eb8-9149-40626fca2bac
