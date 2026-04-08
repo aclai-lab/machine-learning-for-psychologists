@@ -32,16 +32,16 @@ end
 ################################################################################
 
 function filter_df(df::AbstractDataFrame, ::Val{:missing_cols};
-                   max_missing::Int,
-                   colnames::AbstractVector=String[])
+    max_missing::Int,
+    colnames::AbstractVector=String[])
     cols = _resolve_cols(df, colnames)
-    bad  = filter(c -> count(ismissing, df[!, c]) > max_missing, cols)
+    bad = filter(c -> count(ismissing, df[!, c]) > max_missing, cols)
     return isempty(bad) ? copy(df) : select(df, Not(bad))
 end
 
 function filter_df(df::AbstractDataFrame, ::Val{:missing_rows};
-                   max_missing::Int,
-                   colnames::AbstractVector=String[])
+    max_missing::Int,
+    colnames::AbstractVector=String[])
     cols = _resolve_cols(df, colnames)
     keep = [count(ismissing, (row[c] for c in cols)) <= max_missing
             for row in eachrow(df)]
@@ -49,18 +49,18 @@ function filter_df(df::AbstractDataFrame, ::Val{:missing_rows};
 end
 
 function filter_df(df::AbstractDataFrame, ::Val{:property_cols};
-                   max_occurrences::Int,
-                   property=ismissing,
-                   colnames::AbstractVector=String[])
+    max_occurrences::Int,
+    property=ismissing,
+    colnames::AbstractVector=String[])
     cols = _resolve_cols(df, colnames)
-    bad  = filter(c -> count(property, df[!, c]) >= max_occurrences, cols)
+    bad = filter(c -> count(property, df[!, c]) >= max_occurrences, cols)
     return isempty(bad) ? copy(df) : select(df, Not(bad))
 end
 
 function filter_df(df::AbstractDataFrame, ::Val{:property_rows};
-                   max_occurrences::Int,
-                   property=ismissing,
-                   colnames::AbstractVector=String[])
+    max_occurrences::Int,
+    property=ismissing,
+    colnames::AbstractVector=String[])
     cols = _resolve_cols(df, colnames)
     keep = [count(property, (row[c] for c in cols)) < max_occurrences
             for row in eachrow(df)]
@@ -68,10 +68,10 @@ function filter_df(df::AbstractDataFrame, ::Val{:property_rows};
 end
 
 function filter_df(df::AbstractDataFrame, ::Val{:frequency};
-                   frequency_threshold::Real=0.6,
-                   colnames::AbstractVector=String[])
+    frequency_threshold::Real=0.6,
+    colnames::AbstractVector=String[])
     cols = _resolve_cols(df, colnames)
-    bad  = filter(cols) do c
+    bad = filter(cols) do c
         vals = collect(skipmissing(df[!, c]))
         isempty(vals) && return false
         maximum(values(countmap(vals))) / length(vals) >= frequency_threshold
@@ -80,25 +80,25 @@ function filter_df(df::AbstractDataFrame, ::Val{:frequency};
 end
 
 function filter_df(df::AbstractDataFrame, ::Val{:entropy};
-                   entropy_threshold::Real=0.5,
-                   colnames::AbstractVector=String[])
+    entropy_threshold::Real=0.5,
+    colnames::AbstractVector=String[])
     cols = _resolve_cols(df, colnames)
-    bad  = filter(c -> _col_entropy(df[!, c]) < entropy_threshold, cols)
+    bad = filter(c -> _col_entropy(df[!, c]) < entropy_threshold, cols)
     return isempty(bad) ? copy(df) : select(df, Not(bad))
 end
 
 function filter_df(df::AbstractDataFrame, ::Val{:zscore};
-                   z_threshold::Real=1.65,
-                   colnames::AbstractVector=String[])
+    z_threshold::Real=1.65,
+    colnames::AbstractVector=String[])
     cols = isempty(colnames) ?
-        filter(c -> eltype(df[!, c]) <: Union{Real, Missing}, names(df)) :
-        collect(String, colnames)
+           filter(c -> eltype(df[!, c]) <: Union{Real,Missing}, names(df)) :
+           collect(String, colnames)
 
     keep = trues(nrow(df))
     for c in cols
         col = df[!, c]
-        μ   = mean(skipmissing(col))
-        σ   = std(skipmissing(col))
+        μ = mean(skipmissing(col))
+        σ = std(skipmissing(col))
         σ == 0 && continue
         keep .&= [ismissing(v) || abs((v - μ) / σ) <= z_threshold for v in col]
     end
@@ -106,15 +106,15 @@ function filter_df(df::AbstractDataFrame, ::Val{:zscore};
 end
 
 function filter_df(df::AbstractDataFrame, ::Val{:cast};
-                   cast_threshold::Int=30)
+    cast_threshold::Int=30)
     out = copy(df)
     for col in names(out)
         x = out[!, col]
         T = eltype(x)
 
-        if T <: Union{AbstractString, Bool, Missing}
+        if T <: Union{AbstractString,Bool,Missing}
             out[!, col] = categorical(x)
-        elseif T <: Union{Real, Missing}
+        elseif T <: Union{Real,Missing}
             if length(unique(skipmissing(x))) <= cast_threshold
                 out[!, col] = categorical(x)
             else
