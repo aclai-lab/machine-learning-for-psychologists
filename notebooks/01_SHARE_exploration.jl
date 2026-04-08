@@ -54,7 +54,7 @@ md"""
 md"""
 # Data Loading
 
-In this section, we are going to load the raw data collected by Murri et. al., as described in their work [Risk Prediction Models for Depression in Community-Dwelling Older Adults](https://www.ajgponline.org/article/S1064-7481(22)00435-3/abstract). 
+In this section, we are going to load the raw data collected by Murri et al., as described in their work [Risk Prediction Models for Depression in Community-Dwelling Older Adults](https://www.ajgponline.org/article/S1064-7481(22)00435-3/abstract). 
 
 The data was collected with the final goal of developing machine-learning predictors for late-life depression, including demographic characteristics, health-related factors, disability and individual depressive symptoms.
 
@@ -83,243 +83,261 @@ end
 # ╔═╡ f6b53ccf-85e2-40bd-bef4-6a329b1bf2d4
 df_raw = DataFrame(load(SAV_PATH))
 
-# ╔═╡ adc7f08a-36c4-4eb8-9149-40626fca2bac
+# ╔═╡ c5e327e5-a169-4f25-a09d-d0c4f6540d9d
 md"""
-For more info [see the SHARE dataset](https://share-eric.eu/data/).
+!!! info
+	[Click here](https://en.wikipedia.org/wiki/Comma-separated_values) to know more about CSV (comma-separated values).
 """
-
-# ╔═╡ 5d3d8370-1ad9-4721-99a9-d17768e8178a
-begin 
-	attribute_names = Dict(
-	    # ── 1. SOCIODEMOGRAPHIC ──────────────────────────────────────────────────
-	    "age_int" => "age",
-	    "dn042_" => "gender",
-	    "dn503_" => "ethnicity",
-	    "dn014_" => "marital_status",
-	    "iv009_" => "residence_rural_urban",
-	    "hhsize" => "living_alone",
-
-	    # Social contacts
-	    "sp002_" => "social_support_received",
-	    "sp008_" => "social_support_given",
-	    "ch001_" => "number_of_children",
-	    "ch021_" => "number_of_grandchildren",
-	    "dn034_" => "number_of_siblings",
-
-	    # Employment / Economic
-	    "ep005_" => "occupation_employment",
-
-	    # Activities
-	    "ac035d1" => "voluntary_charity_work",
-	    "ac035d4" => "educational_training_course",
-	    "ac035d5" => "sport_social_club",
-	    "ac035d7" => "political_community_org",
-	    "ac035d8" => "reading_books_magazines",
-	    "ac035d9" => "word_number_games",
-	    "ac035d10" => "cards_chess_games",
-	    "ac035dno" => "no_activities",
-	    "it003_" => "computer_skills",
-	    "hh022_" => "perception_of_neighbourhood",
-	    "hh025_" => "people_who_would_help",
-	    "hh017e" => "low_income",  
-
-	    # ── 2. MENTAL HEALTH / PSYCHOLOGICAL ────────────────────────────────────
-	    # Depression symptoms (EURO-D items)
-	    "euro1" => "depression_symptom_depression",
-	    "euro2" => "depression_symptom_pessimism",
-	    "euro3" => "depression_symptom_suicidality",
-	    "euro4" => "depression_symptom_guilt",
-	    "euro5" => "depression_symptom_sleep",
-	    "euro6" => "depression_symptom_interest",
-	    "euro7" => "depression_symptom_irritability",
-	    "euro8" => "depression_symptom_appetite",
-	    "euro9" => "depression_symptom_fatigue",
-	    "euro10" => "depression_symptom_concentration",
-	    "euro11" => "depression_symptom_enjoyment",
-	    "euro12" => "depression_symptom_tearfulness",
-	    "ph011d10" => "psychotropic_drug_use",
-
-	    # Cognitive
-	    "ph006d16" => "cognitive_problems_diagnosed",
-
-	    # Quality of life & other psychological
-	    "ac012_" => "life_satisfaction",
-	    "mh037_" => "loneliness",
-
-	    # Aging perceptions / negative cognitive style
-	    "ac014_" => "age_prevents_doing_things",
-	    "ac015_" => "out_of_control",
-	    "ac016_" => "feel_left_out",
-	    "ac017_" => "do_things_you_want",
-	    "ac018_" => "family_responsibilities_prevent",
-	    "ac019_" => "shortage_of_money_stops",
-	    "ac020_" => "look_forward_each_day",
-	    "ac021_" => "life_has_meaning",
-	    "ac022_" => "look_back_with_happiness",
-	    "ac023_" => "feel_full_of_energy",
-	    "ac024_" => "full_of_opportunities",
-	    "ac025_" => "future_looks_good",
-
-	    # ── 3. PHYSICAL HEALTH ──────────────────────────────────────────────────
-	    "ph071_1" => "heart_attack",
-	    "ph071_2" => "stroke_vascular_disease",
-	    "ph071_3" => "cancer",
-	    "ph071_4" => "hip_fracture_femoral",
-	    "ph072_1" => "had_condition_heart_attack",
-	    "ph072_2" => "had_condition_stroke_vascular_disease",
-	    "ph072_3" => "had_condition_cancer",
-	    "ph072_4" => "had_condition_hip_fracture_femoral",
-	    "ph073_1" => "had_condition_checked_heart_attack",
-	    "ph073_2" => "had_condition_checked_stroke_vascular_disease",
-	    "ph073_3" => "had_condition_checked_cancer",
-	    "ph073_4" => "had_condition_checked_hip_fracture_femoral",
-	    "ph074_1" => "reason_heart_attack",
-	    "ph074_2" => "reason_stroke_vascular_disease",
-	    "ph074_3" => "reason_cancer",
-	    "ph074_4" => "reason_hip_fracture_femoral",
-	    "ph075_1" => "had_condition_conf_heart_attack",
-	    "ph075_2" => "had_condition_conf_stroke_vascular_disease",
-	    "ph075_3" => "had_condition_conf_cancer",
-	    "ph075_4" => "had_condition_conf_hip_fracture_femoral",
-	    "ph076_1" => "most_recent_year_heart_attack",
-	    "ph076_2" => "most_recent_year_stroke_vascular_disease",
-	    "ph076_3" => "most_recent_year_cancer",
-	    "ph076_4" => "most_recent_year_hip_fracture_femoral",
-	    "ph077_1" => "month_condition_heart_attack",
-	    "ph077_2" => "month_condition_stroke_vascular_disease",
-	    "ph077_3" => "month_condition_cancer",
-	    "ph077_4" => "month_condition_hip_fracture_femoral",
-	    "ph006d5" => "diabetes",
-	    "ph006d6" => "chronic_lung_disease",
-	    "ph006d12" => "parkinson_disease",
-
-	    # Drug use
-	    "ph011d1" => "drugs_high_cholesterol",
-	    "ph011d11" => "drugs_osteoporosis",
-	    "ph011d13" => "drugs_stomach_burns",
-	    "ph011d14" => "drugs_chronic_bronchitis",
-	    "ph011d15" => "drugs_corticosteroids",
-	    "ph011d2" => "drugs_high_blood_pressure",
-	    "ph011d3" => "drugs_coronary_diseases",
-	    "ph011d4" => "drugs_other_heart_diseases",
-	    "ph011d6" => "drugs_diabetes",
-	    "ph011d7" => "drugs_joint_pain",
-	    "ph011d8" => "drugs_other_pain",
-	    "ph011d9" => "drugs_sleep_problems",
-	    "ph011dno" => "drugs_none",
-	    "ph011dot" => "drugs_other",
-	    "ph003_" => "perceived_health",
-	    "ph006d3" => "hypercholesterolemia",
-
-	    # Physical condition
-	    "ph046_" => "hearing",
-	    "ph043_" => "eyesight_distance",
-	    "ph044_" => "eyesight_reading",
-	    "ph092_" => "missing_teeth",
-	    "bmi2" => "bmi_categories",
-	    "ph012_" => "weight",
-	    "ph013_" => "height",
-	    "ph065_" => "weight_loss",
-	    "ph061_" => "lim_paid_work",
-	    "ph066_" => "reason_lost_weight",
-
-	    # ADLs
-	    "ph041_" => "use_glasses",
-	    "ph045_" => "use_hearing_aid",
-	    "ph048d1" => "difficulty_walking_100m",
-	    "ph048d2" => "difficulty_sitting_2h",
-	    "ph048d3" => "difficulty_getting_up_chair",
-	    "ph048d4" => "difficulty_climbing_several_stairs",
-	    "ph048d5" => "difficulty_climbing_one_flight",
-	    "ph048d6" => "difficulty_stooping_kneeling",
-	    "ph048d7" => "difficulty_reaching_arms",
-	    "ph048d8" => "difficulty_pushing_large_objects",
-	    "ph048d9" => "difficulty_lifting_5kg",
-	    "ph048d10" => "difficulty_picking_coin",
-	    "ph048dno" => "difficulty_none_adl",
-	    "ph090_" => "bifoc_glass_lenses",
-	    "ph091_" => "all_natural_teeth",
-	    "ph094_" => "artificial_teeth",
-	    "ph095_" => "lost_weight",
-
-	    # IADLs
-	    "ph049d1" => "difficulty_dressing",
-	    "ph049d2" => "difficulty_walking_room",
-	    "ph049d3" => "difficulty_bathing",
-	    "ph049d4" => "difficulty_eating",
-	    "ph049d5" => "difficulty_getting_out_bed",
-	    "ph049d6" => "difficulty_using_toilet",
-	    "ph049d7" => "difficulty_using_map",
-	    "ph049d8" => "difficulty_preparing_meal",
-	    "ph049d9" => "difficulty_shopping",
-	    "ph049d10" => "difficulty_telephone",
-	    "ph049d11" => "difficulty_taking_medications",
-	    "ph049d12" => "difficulty_housework",
-	    "ph049d13" => "difficulty_managing_money",
-	    "ph049dno" => "difficulty_none_iadl",
-
-	    # Frailty
-	    "ph089d1" => "bothered_falling_down",
-	    "ph089d2" => "fear_of_falling",
-	    "ph089d3" => "dizziness_faints_blackouts",
-
-	    # Physical symptoms
-	    "ph084_" => "pain",
-	    "ph089d4" => "fatigue_frailty",
-	    "ph085_" => "pain_level",
-	    "ph008d11" => "trouble_sleeping",
-	    "ph008d12" => "trouble_falling_asleep",
-	    "ph008d13" => "trouble_waking_during_night",
-	    "ph008d14" => "trouble_waking_too_early",
-	    "ph008d15" => "trouble_feeling_restored",
-	    "ph008d16" => "trouble_sleeping_difficulty",
-	    "ph008d17" => "trouble_sleeping_tired",
-	    "ph008d18" => "trouble_sleeping_energy",
-	    "ph008d19" => "trouble_sleeping_problem",
-	    "ph008d20" => "trouble_sleeping_restless",
-	    "ph008d21" => "trouble_sleeping_insomnia",
-	    "ph008d22" => "trouble_sleeping_other",
-	    "ph008dot" => "trouble_sleeping_none",
-	    "ph006d1" => "heart_disease",
-	    "ph006d2" => "hypertension",
-	    "ph006d4" => "vascular_disease",
-	    "ph006d10" => "told_cancer",
-	    "ph006d11" => "ulcer",
-	    "ph006d13" => "cataracts",
-	    "ph006d14" => "femoral_fracture",
-	    "ph006d15" => "other_fracture",
-	    "ph006d16" => "alzheimer",
-	    "ph006d18" => "emotional_disorders",
-	    "ph006d19" => "rheumatoid_arthritis",
-	    "ph006d20" => "osteoarthritis",
-	    "ph006dno" => "no_disease",
-	    "ph006dot" => "other_disease",
-	    "ph004_" => "long_term_illness_disability",
-	    "ph005_" => "limited_activity",
-	    "ph008d2"  => "oral_cancer",
-	    "ph008d3"  => "larynx_cancer",	
-	    "ph008d4"  => "pharynx_cancer",
-	    "ph008d5"  => "thryoid_cancer",
-	    "ph008d6"  => "lung_cancer",
-	    "ph008d7"  => "breast_cancer",
-	    "ph008d8"  => "oesophagus_cancer",
-	    "ph008d9"  => "stomach_cancer",
-	    "ph008d10" => "liver_cancer",
-	    "co007_" => "household_ends_meet",
-
-	    # Habits / lifestyle
-	    "br015_" => "vigorous_physical_activity",
-	    "br016_" => "moderate_physical_activity",
-	    "phactiv" => "no_physical_activity",
-	)
-	
-	dropped_variables = [ "mergeid", "hhid5", "hhid6", "hhid7", "mergeidp5", "mergeidp6", "mergeidp7", "coupleid5", "coupleid6", "coupleid7", "ph008d1", "ph054_", "ph080d1", "ph080d2", "ph080d3", "ph080d4", "ph080d5", "ph080d6", "ph080d7", "ph080d8", "ph080d9", "ph080d10", "ph080d11", "ph080d12", "ph080d13", "ph080d14", "ph080d15", "ph080d16", "ph080d17", "ph080d18", "ph080d19", "ph080d20", "ph080d21", "ph080d22", "ph080dot", "ph087d1", "ph087d2", "ph087d3", "ph087d4", "ph087d5", "ph087d6", "ph087d7", "ph088_", "ph089dno", "ph082_", "ph006d21", "ph049d14", "ph049d15", "ph050_", "ph051_", "ph059d1", "ph059d2", "ph059d3", "ph059d4", "ph059d5", "ph059d6", "ph059d7", "ph059d8", "ph059d9", "ph059d10", "ph059dno", "ph059dot", "ph690d1", "ph690d2", "ph690d3", "ph690d4", "ph745_","ph009_1","ph009_2","ph009_3","ph009_4","ph009_5","ph009_6","ph009_10","ph009_11","ph009_12","ph009_13","ph009_14","ph009_15","ph009_16","ph009_18","ph009_19","ph009_20","ph009_other"]	
-end
 
 # ╔═╡ d3a4de4f-10c8-4e70-9104-b47364b99179
 md"""
 # Data Exploration
+
+First of all, we want to take a bit of familiarity with data.
+At the end of this section we should be able to answer the following questions:
+1. how many instances and attributes are there?
+2. what do attributes encode? which are categorical and which are continuous?
+3. looking at the distributions, are there attributes that are trivially uninformative? (e.g., having always the same value)
 """
+
+# ╔═╡ 7db28b02-a364-4bd0-84fe-be7c2d87e2cc
+md"""
+!!! info 
+	To decipher the meaning of each attribute code, we need to consult the [supplementary material](https://dk.aclai.unife.it/Supplementary_information.pdf) shared with the work of Murri et al. or, more generally, the [official SHARE archive website](https://www.share-datadocutool.org/study-units/view/6).
+
+	The mapping `attribute_names` will be useful to translate the attribute names of in `df`.
+"""
+
+# ╔═╡ c88ab2ca-0a1a-4065-b1bb-10858e45b599
+attribute_names = Dict(
+	# Section 1: Sociodemographic
+    "age_int" => "age",
+    "dn042_" => "gender",
+    "dn503_" => "ethnicity",
+    "dn014_" => "marital_status",
+    "iv009_" => "residence_rural_urban",
+    "hhsize" => "living_alone",
+
+	# social contacts
+    "sp002_" => "social_support_received",
+    "sp008_" => "social_support_given",
+    "ch001_" => "number_of_children",
+    "ch021_" => "number_of_grandchildren",
+    "dn034_" => "number_of_siblings",
+    "ep005_" => "occupation_employment",
+
+	# activities
+    "ac035d1" => "voluntary_charity_work",
+    "ac035d4" => "educational_training_course",
+    "ac035d5" => "sport_social_club",
+    "ac035d7" => "political_community_org",
+    "ac035d8" => "reading_books_magazines",
+    "ac035d9" => "word_number_games",
+    "ac035d10" => "cards_chess_games",
+    "ac035dno" => "no_activities",
+    "it003_" => "computer_skills",
+    "hh022_" => "perception_of_neighbourhood",
+    "hh025_" => "people_who_would_help",
+    "hh017e" => "low_income",  
+
+	# Section 2: Mental Health
+	
+	# depression symptoms (EURO-D standard)
+    "euro1" => "depression_symptom_depression",
+    "euro2" => "depression_symptom_pessimism",
+    "euro3" => "depression_symptom_suicidality",
+    "euro4" => "depression_symptom_guilt",
+    "euro5" => "depression_symptom_sleep",
+    "euro6" => "depression_symptom_interest",
+    "euro7" => "depression_symptom_irritability",
+    "euro8" => "depression_symptom_appetite",
+    "euro9" => "depression_symptom_fatigue",
+    "euro10" => "depression_symptom_concentration",
+    "euro11" => "depression_symptom_enjoyment",
+    "euro12" => "depression_symptom_tearfulness",
+    "ph011d10" => "psychotropic_drug_use",
+    "ph006d16" => "cognitive_problems_diagnosed",
+
+	# quality of life
+    "ac012_" => "life_satisfaction",
+    "mh037_" => "loneliness",
+
+	# negative cognitive style
+    "ac014_" => "age_prevents_doing_things",
+    "ac015_" => "out_of_control",
+    "ac016_" => "feel_left_out",
+    "ac017_" => "do_things_you_want",
+    "ac018_" => "family_responsibilities_prevent",
+    "ac019_" => "shortage_of_money_stops",
+    "ac020_" => "look_forward_each_day",
+    "ac021_" => "life_has_meaning",
+    "ac022_" => "look_back_with_happiness",
+    "ac023_" => "feel_full_of_energy",
+    "ac024_" => "full_of_opportunities",
+    "ac025_" => "future_looks_good",
+
+	# Section 3: Physical Health
+    "ph071_1" => "heart_attack",
+    "ph071_2" => "stroke_vascular_disease",
+    "ph071_3" => "cancer",
+    "ph071_4" => "hip_fracture_femoral",
+    "ph072_1" => "had_condition_heart_attack",
+    "ph072_2" => "had_condition_stroke_vascular_disease",
+    "ph072_3" => "had_condition_cancer",
+    "ph072_4" => "had_condition_hip_fracture_femoral",
+    "ph073_1" => "had_condition_checked_heart_attack",
+    "ph073_2" => "had_condition_checked_stroke_vascular_disease",
+    "ph073_3" => "had_condition_checked_cancer",
+    "ph073_4" => "had_condition_checked_hip_fracture_femoral",
+    "ph074_1" => "reason_heart_attack",
+    "ph074_2" => "reason_stroke_vascular_disease",
+    "ph074_3" => "reason_cancer",
+    "ph074_4" => "reason_hip_fracture_femoral",
+    "ph075_1" => "had_condition_conf_heart_attack",
+    "ph075_2" => "had_condition_conf_stroke_vascular_disease",
+    "ph075_3" => "had_condition_conf_cancer",
+    "ph075_4" => "had_condition_conf_hip_fracture_femoral",
+    "ph076_1" => "most_recent_year_heart_attack",
+    "ph076_2" => "most_recent_year_stroke_vascular_disease",
+    "ph076_3" => "most_recent_year_cancer",
+    "ph076_4" => "most_recent_year_hip_fracture_femoral",
+    "ph077_1" => "month_condition_heart_attack",
+    "ph077_2" => "month_condition_stroke_vascular_disease",
+    "ph077_3" => "month_condition_cancer",
+    "ph077_4" => "month_condition_hip_fracture_femoral",
+    "ph006d5" => "diabetes",
+    "ph006d6" => "chronic_lung_disease",
+    "ph006d12" => "parkinson_disease",
+
+	# drug use
+    "ph011d1" => "drugs_high_cholesterol",
+    "ph011d11" => "drugs_osteoporosis",
+    "ph011d13" => "drugs_stomach_burns",
+    "ph011d14" => "drugs_chronic_bronchitis",
+    "ph011d15" => "drugs_corticosteroids",
+    "ph011d2" => "drugs_high_blood_pressure",
+    "ph011d3" => "drugs_coronary_diseases",
+    "ph011d4" => "drugs_other_heart_diseases",
+    "ph011d6" => "drugs_diabetes",
+    "ph011d7" => "drugs_joint_pain",
+    "ph011d8" => "drugs_other_pain",
+    "ph011d9" => "drugs_sleep_problems",
+    "ph011dno" => "drugs_none",
+    "ph011dot" => "drugs_other",
+    "ph003_" => "perceived_health",
+    "ph006d3" => "hypercholesterolemia",
+
+	# physical condition
+    "ph046_" => "hearing",
+    "ph043_" => "eyesight_distance",
+    "ph044_" => "eyesight_reading",
+    "ph092_" => "missing_teeth",
+    "bmi2" => "bmi_categories",
+    "ph012_" => "weight",
+    "ph013_" => "height",
+    "ph065_" => "weight_loss",
+    "ph061_" => "lim_paid_work",
+    "ph066_" => "reason_lost_weight",
+
+	# ADLs (Activities of Daily Living)
+    "ph041_" => "use_glasses",
+    "ph045_" => "use_hearing_aid",
+    "ph048d1" => "difficulty_walking_100m",
+    "ph048d2" => "difficulty_sitting_2h",
+    "ph048d3" => "difficulty_getting_up_chair",
+    "ph048d4" => "difficulty_climbing_several_stairs",
+    "ph048d5" => "difficulty_climbing_one_flight",
+    "ph048d6" => "difficulty_stooping_kneeling",
+    "ph048d7" => "difficulty_reaching_arms",
+    "ph048d8" => "difficulty_pushing_large_objects",
+    "ph048d9" => "difficulty_lifting_5kg",
+    "ph048d10" => "difficulty_picking_coin",
+    "ph048dno" => "difficulty_none_adl",
+    "ph090_" => "bifoc_glass_lenses",
+    "ph091_" => "all_natural_teeth",
+    "ph094_" => "artificial_teeth",
+    "ph095_" => "lost_weight",
+
+	# IADLs (Instrumental Activities of Daily Living)
+    "ph049d1" => "difficulty_dressing",
+    "ph049d2" => "difficulty_walking_room",
+    "ph049d3" => "difficulty_bathing",
+    "ph049d4" => "difficulty_eating",
+    "ph049d5" => "difficulty_getting_out_bed",
+    "ph049d6" => "difficulty_using_toilet",
+    "ph049d7" => "difficulty_using_map",
+    "ph049d8" => "difficulty_preparing_meal",
+    "ph049d9" => "difficulty_shopping",
+    "ph049d10" => "difficulty_telephone",
+    "ph049d11" => "difficulty_taking_medications",
+    "ph049d12" => "difficulty_housework",
+    "ph049d13" => "difficulty_managing_money",
+    "ph049dno" => "difficulty_none_iadl",
+
+	# frailities
+    "ph089d1" => "bothered_falling_down",
+    "ph089d2" => "fear_of_falling",
+    "ph089d3" => "dizziness_faints_blackouts",
+
+    # physical symptoms
+    "ph084_" => "pain",
+    "ph089d4" => "fatigue_frailty",
+    "ph085_" => "pain_level",
+    "ph008d11" => "trouble_sleeping",
+    "ph008d12" => "trouble_falling_asleep",
+    "ph008d13" => "trouble_waking_during_night",
+    "ph008d14" => "trouble_waking_too_early",
+    "ph008d15" => "trouble_feeling_restored",
+    "ph008d16" => "trouble_sleeping_difficulty",
+    "ph008d17" => "trouble_sleeping_tired",
+    "ph008d18" => "trouble_sleeping_energy",
+    "ph008d19" => "trouble_sleeping_problem",
+    "ph008d20" => "trouble_sleeping_restless",
+    "ph008d21" => "trouble_sleeping_insomnia",
+    "ph008d22" => "trouble_sleeping_other",
+    "ph008dot" => "trouble_sleeping_none",
+    "ph006d1" => "heart_disease",
+    "ph006d2" => "hypertension",
+    "ph006d4" => "vascular_disease",
+    "ph006d10" => "told_cancer",
+    "ph006d11" => "ulcer",
+    "ph006d13" => "cataracts",
+    "ph006d14" => "femoral_fracture",
+    "ph006d15" => "other_fracture",
+    "ph006d16" => "alzheimer",
+    "ph006d18" => "emotional_disorders",
+    "ph006d19" => "rheumatoid_arthritis",
+    "ph006d20" => "osteoarthritis",
+    "ph006dno" => "no_disease",
+    "ph006dot" => "other_disease",
+    "ph004_" => "long_term_illness_disability",
+    "ph005_" => "limited_activity",
+    "ph008d2"  => "oral_cancer",
+    "ph008d3"  => "larynx_cancer",	
+    "ph008d4"  => "pharynx_cancer",
+    "ph008d5"  => "thryoid_cancer",
+    "ph008d6"  => "lung_cancer",
+    "ph008d7"  => "breast_cancer",
+    "ph008d8"  => "oesophagus_cancer",
+    "ph008d9"  => "stomach_cancer",
+    "ph008d10" => "liver_cancer",
+    "co007_" => "household_ends_meet",
+
+	# habits and lifestyle
+    "br015_" => "vigorous_physical_activity",
+    "br016_" => "moderate_physical_activity",
+    "phactiv" => "no_physical_activity",
+)
+
+
+# ╔═╡ 276b5cc2-b96c-4ddb-83dc-4ffb71978982
+md"""
+!!! warning
+	The collection below, `dropped_variables`, is a collection of attributes that are not exploited in the work mentioned above. We decide to ignore them.
+"""
+
+# ╔═╡ a0e4c864-da20-4020-8f90-5f311ec1ba00
+dropped_variables = [ "mergeid", "hhid5", "hhid6", "hhid7", "mergeidp5", "mergeidp6", "mergeidp7", "coupleid5", "coupleid6", "coupleid7", "ph008d1", "ph054_", "ph080d1", "ph080d2", "ph080d3", "ph080d4", "ph080d5", "ph080d6", "ph080d7", "ph080d8", "ph080d9", "ph080d10", "ph080d11", "ph080d12", "ph080d13", "ph080d14", "ph080d15", "ph080d16", "ph080d17", "ph080d18", "ph080d19", "ph080d20", "ph080d21", "ph080d22", "ph080dot", "ph087d1", "ph087d2", "ph087d3", "ph087d4", "ph087d5", "ph087d6", "ph087d7", "ph088_", "ph089dno", "ph082_", "ph006d21", "ph049d14", "ph049d15", "ph050_", "ph051_", "ph059d1", "ph059d2", "ph059d3", "ph059d4", "ph059d5", "ph059d6", "ph059d7", "ph059d8", "ph059d9", "ph059d10", "ph059dno", "ph059dot", "ph690d1", "ph690d2", "ph690d3", "ph690d4", "ph745_","ph009_1","ph009_2","ph009_3","ph009_4","ph009_5","ph009_6","ph009_10","ph009_11","ph009_12","ph009_13","ph009_14","ph009_15","ph009_16","ph009_18","ph009_19","ph009_20","ph009_other"]
 
 # ╔═╡ e550be57-eab2-4064-b3fd-2b87c45cecbd
 df = select(df_raw, Not(dropped_variables))
@@ -337,74 +355,100 @@ n_rows, n_cols = size(df)
 @bind colname Select(names(df))
 
 # ╔═╡ 44130ea6-884e-45a7-a580-290b09609a49
-histogram(collect(skipmissing(df[:, colname])), xlabel=colname, ylabel="Count", title=colname, legend=false)
+histogram(
+	collect(df[:, colname]), 
+	xlabel=colname, 
+	ylabel="Count", 
+	title=colname, 
+	legend=false
+)
+
+# ╔═╡ 43648c1f-7874-4c65-b4e5-8dce3bb8b4c8
+md"""
+# Data Cleaning: Missing Values
+
+We proceed to get rid of attributes and instances having too many missing values. 
+
+Using two sliders, one for each case, we are going to set a threshold for how many missing value to keep at most.
+"""
 
 # ╔═╡ 8d047693-fc98-44da-8ba2-53b43c0ffb88
-@bind perc_missing_col Slider(0:0.05:1, show_value=true, default=0.6)
-
-# ╔═╡ c77ca35d-d91d-440e-85f0-1926ed3848a6
-max_missing_instances = round(Int, perc_missing_col * n_rows);
-
-# ╔═╡ d3718495-98b7-47da-861e-982977b7a4cd
 md"""
-You are filtering the columns with more than the $(round(perc_missing_col*100, digits=2))% of missing values (that is, $(convert(Int,max_missing_instances)) values).
+##### Columns Filtering
+
+$(@bind perc_missing_col Slider(0:0.05:1, show_value=true, default=0.6))
 """
+
+
+# ╔═╡ be2a50c2-21c3-48a5-8246-28fd34cad8ed
+max_missing_instances = round(Int, perc_missing_col * n_rows)
 
 # ╔═╡ a271df5b-07a9-4580-93f6-e4ae2cac527c
-df_nmc = filter_df(df, :missing_cols; max_missing=max_missing_instances)
+df_no_missing_columns = filter_df(df, :missing_cols; max_missing=max_missing_instances)
 
-# ╔═╡ 33a2f102-1a76-49aa-9ec2-39f981a51272
-df_nmc_rows, df_nmc_cols = size(df_nmc)
+# ╔═╡ ce62c952-23d0-4a93-b96a-db65858a54e5
+n_rows_df_no_missing_columns, n_cols_df_no_missing_columns = size(df_no_missing_columns)
 
-# ╔═╡ 9d5b8635-8126-4a87-9111-b3970cabf595
+# ╔═╡ a4d45954-765c-42c2-913c-60bbd5a9e8f4
 md"""
-Now $(df_nmc_cols) columns remains. 
+!!! success "Columns filtering report"
+	You filtered out the columns with more than the **$(round(perc_missing_col*100, digits=2))%** of missing values (that is, **$(convert(Int,max_missing_instances))** values).
+	
+	Now **$(n_cols_df_no_missing_columns)** columns remains. 
 """
 
-# ╔═╡ 9b0d582d-97cc-4015-a554-1933a44f2c35
-@bind perc_missing_row Slider(0:0.01:1, show_value=true, default=0.6)
+# ╔═╡ 9889c086-f2d7-4878-b582-519af397271b
+md"""
+##### Rows Filtering
+
+$(@bind perc_missing_row Slider(0:0.01:1, show_value=true, default=0.6))
+"""
+
 
 # ╔═╡ f9fa4262-616a-446e-8f36-1e1f4e057b6d
-max_missing_along_row = round(Int, perc_missing_row * df_nmc_cols);
-
-# ╔═╡ f101f661-dfc5-4b05-bbcf-04b72c8091bf
-# TODO: when writing the documentation, specify that this refers to the baseline euro_d, which is different from the follow-up euro_d;
-# baseline means "the situation from which I am starting".
-df_nmc[:,"initial_euro_d"]
+max_missing_along_row = round(Int, perc_missing_row * n_cols_df_no_missing_columns);
 
 # ╔═╡ 35e96199-c896-46a7-bc63-0853ba7bbd14
-df_nmrc = filter_df(df_nmc, :missing_rows; max_missing=max_missing_along_row)
-
-# ╔═╡ 504e7090-f1b2-4d3e-95ee-8d4799c42bcc
-md"""
-You are filtering the instances containing more than the $(round(perc_missing_row*100, digits=2))% of missing values (that is, $(convert(Int,max_missing_along_row)) columns).
-"""
+df_no_missing = filter_df(df_no_missing_columns, :missing_rows; max_missing=max_missing_along_row)
 
 # ╔═╡ c85c719a-3c99-4c49-b056-ce59535a457f
-df_nmrc_rows, df_nmrc_cols = size(df_nmrc)
+n_rows_df_no_missing, n_cols_df_no_missing = size(df_no_missing)
 
-# ╔═╡ d1e0a774-4a70-4923-8206-bca327ff27d8
+# ╔═╡ 77ee75b1-5a7c-4497-91f9-433aeb7d0a2a
 md"""
-Now, $(df_nmrc_rows) instances remains.
+!!! success "Rows filtering report"
+	You filtered out the rows containing more than the $(round(perc_missing_row*100, digits=2))% of missing values (that is, $(convert(Int,max_missing_along_row)) columns).
+
+	Now, $(n_rows_df_no_missing) instances remains.
 """
 
 # ╔═╡ 3094d269-cd3d-46b6-9f32-cb99e19f3cc9
-@bind df_nmrc_colname Select(names(df_nmrc))
+@bind df_no_missing_colname Select(names(df_no_missing))
 
 # ╔═╡ d09c8f96-74fa-4e98-87b3-080f8d0aae02
-histogram(collect(skipmissing(df_nmrc[:, df_nmrc_colname])), xlabel=df_nmrc_colname, ylabel="Count", title=df_nmrc_colname, legend=false)
-
-# ╔═╡ f84cd739-ab38-4e21-b9c1-f0447267f73e
-begin
-	df_nmrc[:,"initial_euro_d_int"] = [v == "no" ? 0 : 1 for v in df_nmrc[:,"initial_euro_d"]]
-	select!(df_nmrc, Not("initial_euro_d"));
-end
+histogram(
+	collect(df_no_missing[:, df_no_missing_colname]), 
+	xlabel=df_no_missing_colname, 
+	ylabel="Count", 
+	title=df_no_missing_colname, 
+	legend=false
+)
 
 # ╔═╡ 147b3de2-5a64-4bfc-adc8-af8c9b5d25b8
 md"""
-# Manual check for euro scores
+# Labels Exploration
 
-We decide to remove the (few) rows containing -1 and -2 in the *euro_d* fields (respectively, "Don't know" and the "I prefer not to answer").
+The attributes `initial_euro_d` and `euro_d` states whether a patient is depressed or non-depressed, respectively at baseline and follow-up.
+
+It is important to note that the `euro_d` attribute (or the pair of the attributes above) is particularly important, since our final goal is to train machine learning predictors for this label (or, possibly, the pair).
+
+A graphical inspection of the relation between the label and other attributes can be insightful.
+"""
+
+# ╔═╡ 4bf08b0e-ab51-4799-92bc-2c0991b561d3
+md"""
+!!! note
+	Actually, `euro_d` can be considered a *feature* derived by summing together all the integer values in the `euro_d_attributes` columns (see below); if the total is greater than or equal to 4, then the patient is depressed at follow-up.
 """
 
 # ╔═╡ 3575f98f-37b4-4504-aec0-a6e546a7fb7e
@@ -423,12 +467,28 @@ euro_d_attributes = [
 	"depression_symptom_tearfulness",
 ]
 
+# ╔═╡ 23fb94fc-1909-43a0-9151-c9b0874ea87c
+md"""
+!!! warning
+	When dealing with `euro_d_X` attributes, we decide to ignore the (few) instances presenting some fields with -1 or -2 values (respectively, *don't know* and *I prefer not to answer*).
+
+"""
+
 # ╔═╡ 9c17d796-1b74-4fcf-99cb-02975bbd9a83
-df_euro = filter_df(df_nmrc, :property_rows;
+df_euro = filter_df(df_no_missing, 
+	:property_rows;
 	max_occurrences = 1,
-	property        = x -> x isa Number && x < 0,
+	property        = x -> x < 0,
 	colnames        = euro_d_attributes,
 )
+
+# ╔═╡ 590c1a09-4aac-46cc-9236-258593d16103
+md"""
+To really explore the informative content of `euro_d`, we can granularly consider the 12 contributions composing it (`euro_score_total`) and relate the resulting value with a certain `target` value.
+"""
+
+# ╔═╡ f087682f-2c34-4c5c-b098-936fd282371d
+@bind target_attribute Select(names(df_euro))
 
 # ╔═╡ e452edcd-8ac8-4bb7-a96a-26b2ce8d6058
 euro_score_total = [
@@ -438,8 +498,8 @@ euro_score_total = [
 
 # ╔═╡ 98bd33fc-526e-45c7-bbb6-ad67abe05838
 scatter(
-	euro_score_total .+ 0.15 .* randn(length(euro_score_total)),
-	df_euro[:, "age"];
+	euro_score_total .+ 0.12 .* randn(length(euro_score_total)),
+	df_euro[:, target_attribute];
 	group=df_euro[:, "euro_d"],
 	markerstrokewidth=0,
 	markersize=1,
@@ -447,33 +507,62 @@ scatter(
 	ylabel="Age",
 )
 
+# ╔═╡ 660c38a6-2ad0-4e37-a083-d08b3c1d6413
+md"""
+Finally, we try to visualize the ratio between depressed and non-depressed patients with histograms and box plots.
+"""
+
 # ╔═╡ fe25627e-3fbf-462c-a0aa-82d0179cd9bb
 @bind df_euro_colname Select(names(df_euro))
 
 # ╔═╡ 6243c7c3-8d9f-40a7-9276-bf80c92bd242
 begin
-	df_clean = dropmissing(df_euro, [df_euro_colname, "euro_d"])
-	col_data = collect(df_clean[:, df_euro_colname])
+	df_euro_temp = dropmissing(df_euro, [df_euro_colname, "euro_d"])
+	col_data = collect(df_euro_temp[:, df_euro_colname])
 
-	p1 = histogram(col_data; group=df_clean[:, "euro_d"], xlabel=df_euro_colname, title="Histogram")
+	p1 = histogram(col_data; group=df_euro_temp[:, "euro_d"], xlabel=df_euro_colname, title="Histogram")
 	p2 = boxplot(col_data; ylabel=df_euro_colname, title="Boxplot", legend=false)
 	plot(p1, p2; layout=(1, 2))
 end
+
+# ╔═╡ d7a4f151-e158-43ec-948d-3f0f98fe0729
+md"""
+At this point, we can decide whether to keep the `euro_d_attributes` or remove them and only keep the aggregated information (the label to predict).
+
+Probably, the best idea here is to just discard them. 
+"""
+
+# ╔═╡ f5fb9a1d-de7c-4a60-a3b3-6200386d44f5
+df_euro_clean = select(df_euro_temp, Not(euro_d_attributes))
+
+# ╔═╡ 73b63a56-8d36-4995-8157-1838ab882aaa
+size(df_euro_clean)
+
+# ╔═╡ 623a6bdf-7e23-4511-a974-a38515f8716a
+md"""
+# Imputing Missings
+
+As we will see when training machine learning models, we assume that data never contains missing values.
+
+We can *impute* missing values following at least two strategies.
+
+TODO: use both univariate and multivariate feature imputation.
+"""
 
 # ╔═╡ fb5b262b-c8f3-44ed-8c3d-96fb20ad227a
 @bind impute_strategy Select([Impute.mode])
 
 # ╔═╡ 14fc7835-c63f-406e-984f-d5279640bf8e
-for col in names(df_clean)
-	mode_val = impute_strategy(df_clean[!, col])
-    df_clean[!, col] = coalesce.(df_clean[!, col], mode_val)
+for col in names(df_euro_clean)
+	mode_val = impute_strategy(df_euro_clean[!, col])
+    df_euro_clean[!, col] = coalesce.(df_euro_clean[!, col], mode_val)
 end
 
 # ╔═╡ 9bb12323-c3d8-4a40-a076-cf3c35fab32d
 @bind frequency_threshold Slider(0:0.05:1, show_value=true, default=0.6)
 
 # ╔═╡ 9bd07589-0e70-401a-aabd-11772b32aa34
-df_freq_filter = filter_df(df_clean, :frequency; frequency_threshold=frequency_threshold)
+df_freq_filter = filter_df(df_euro_clean, :frequency; frequency_threshold=frequency_threshold)
 
 # ╔═╡ 7d9670d1-24d9-43ba-b0c5-90dbcd526f99
 @bind entropy_threshold Slider(0:0.05:1, show_value=true, default=0.5)
@@ -574,38 +663,47 @@ serialize(SERIALIZE_PATH, df_naout)
 # ╟─e11b7142-8349-452e-9f8c-aaf006d90790
 # ╠═e202a63d-b119-47ac-bf70-6516fb29f423
 # ╠═f6b53ccf-85e2-40bd-bef4-6a329b1bf2d4
-# ╟─adc7f08a-36c4-4eb8-9149-40626fca2bac
-# ╟─5d3d8370-1ad9-4721-99a9-d17768e8178a
+# ╟─c5e327e5-a169-4f25-a09d-d0c4f6540d9d
 # ╠═6a09514b-b065-448e-bf78-420c0d6ce6a5
 # ╟─d3a4de4f-10c8-4e70-9104-b47364b99179
 # ╠═e550be57-eab2-4064-b3fd-2b87c45cecbd
+# ╟─7db28b02-a364-4bd0-84fe-be7c2d87e2cc
+# ╟─c88ab2ca-0a1a-4065-b1bb-10858e45b599
+# ╟─276b5cc2-b96c-4ddb-83dc-4ffb71978982
+# ╟─a0e4c864-da20-4020-8f90-5f311ec1ba00
 # ╠═35c37143-19be-4504-a289-6404c794c617
 # ╠═e6228654-1fd3-433d-8cc3-0ebda46e90af
 # ╠═b7dc3954-e7e2-4064-b96b-0f18ac20fd45
 # ╠═44130ea6-884e-45a7-a580-290b09609a49
-# ╠═8d047693-fc98-44da-8ba2-53b43c0ffb88
-# ╟─c77ca35d-d91d-440e-85f0-1926ed3848a6
-# ╟─d3718495-98b7-47da-861e-982977b7a4cd
+# ╟─43648c1f-7874-4c65-b4e5-8dce3bb8b4c8
+# ╟─8d047693-fc98-44da-8ba2-53b43c0ffb88
+# ╠═be2a50c2-21c3-48a5-8246-28fd34cad8ed
 # ╠═a271df5b-07a9-4580-93f6-e4ae2cac527c
-# ╠═33a2f102-1a76-49aa-9ec2-39f981a51272
-# ╟─9d5b8635-8126-4a87-9111-b3970cabf595
-# ╠═9b0d582d-97cc-4015-a554-1933a44f2c35
+# ╠═ce62c952-23d0-4a93-b96a-db65858a54e5
+# ╟─a4d45954-765c-42c2-913c-60bbd5a9e8f4
+# ╟─9889c086-f2d7-4878-b582-519af397271b
 # ╠═f9fa4262-616a-446e-8f36-1e1f4e057b6d
-# ╠═f101f661-dfc5-4b05-bbcf-04b72c8091bf
 # ╠═35e96199-c896-46a7-bc63-0853ba7bbd14
-# ╟─504e7090-f1b2-4d3e-95ee-8d4799c42bcc
 # ╠═c85c719a-3c99-4c49-b056-ce59535a457f
-# ╟─d1e0a774-4a70-4923-8206-bca327ff27d8
+# ╟─77ee75b1-5a7c-4497-91f9-433aeb7d0a2a
 # ╠═3094d269-cd3d-46b6-9f32-cb99e19f3cc9
 # ╠═d09c8f96-74fa-4e98-87b3-080f8d0aae02
-# ╠═f84cd739-ab38-4e21-b9c1-f0447267f73e
 # ╟─147b3de2-5a64-4bfc-adc8-af8c9b5d25b8
-# ╠═3575f98f-37b4-4504-aec0-a6e546a7fb7e
+# ╟─4bf08b0e-ab51-4799-92bc-2c0991b561d3
+# ╟─3575f98f-37b4-4504-aec0-a6e546a7fb7e
+# ╟─23fb94fc-1909-43a0-9151-c9b0874ea87c
 # ╠═9c17d796-1b74-4fcf-99cb-02975bbd9a83
+# ╟─590c1a09-4aac-46cc-9236-258593d16103
+# ╠═f087682f-2c34-4c5c-b098-936fd282371d
 # ╠═e452edcd-8ac8-4bb7-a96a-26b2ce8d6058
 # ╠═98bd33fc-526e-45c7-bbb6-ad67abe05838
+# ╟─660c38a6-2ad0-4e37-a083-d08b3c1d6413
 # ╠═fe25627e-3fbf-462c-a0aa-82d0179cd9bb
 # ╠═6243c7c3-8d9f-40a7-9276-bf80c92bd242
+# ╟─d7a4f151-e158-43ec-948d-3f0f98fe0729
+# ╠═f5fb9a1d-de7c-4a60-a3b3-6200386d44f5
+# ╠═73b63a56-8d36-4995-8157-1838ab882aaa
+# ╟─623a6bdf-7e23-4511-a974-a38515f8716a
 # ╠═fb5b262b-c8f3-44ed-8c3d-96fb20ad227a
 # ╠═14fc7835-c63f-406e-984f-d5279640bf8e
 # ╠═9bb12323-c3d8-4a40-a076-cf3c35fab32d
