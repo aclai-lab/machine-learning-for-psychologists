@@ -1,130 +1,128 @@
 using DataFrames
 using CategoricalArrays
 using StatsBase
+using Statistics
 
-"""
-TODO: document
-"""
-function filter_along_dimension(
-    df::Any,
-    max_occurrences::Int;
-    dims::Symbol=:cols,
-    property=ismissing,
-    colnames=[]
-)
-    if colnames == []
-        colnames = names(df)
-    end
 
-    if dims == :cols
-        miss_counts = [count(property, df[!, c]) for c in colnames]
-        to_drop = findall(>=(max_occurrences), miss_counts)
-        return select(df, Not(to_drop))
-    elseif dims == :rows
-        miss_counts = [
-            count(property, (row[c] for c in colnames))
-            for row in eachrow(df)
-        ]
-        to_drop = findall(>=(max_occurrences), miss_counts)
-        return df[Not(to_drop), :]
-    else
-        error("dims must be :cols or :rows")
-    end
+_resolve_cols(df::AbstractDataFrame, colnames::AbstractVector) =
+    isempty(colnames) ? names(df) : collect(String, colnames)
+
+
+function _col_entropy(col)
+    clean = collect(skipmissing(col))
+    isempty(clean) && return 0.0
+
+    counts = countmap(clean)
+    n = sum(values(counts))
+    return -sum(c -> (p = c / n; p * log(p)), values(counts))
 end
 
-function filter_by_frequency(df, column_names; frequency_threshold=0.6)
-    to_drop = []
+filter_df(df::AbstractDataFrame, mode::Symbol; kwargs...) =
+    filter_df(df, Val(mode); kwargs...)
 
-    for c in column_names
-        count_dictionary = Dict()
+# Friendly error for unknown modes
+function filter_df(df::AbstractDataFrame, ::Val{M}; kwargs...) where {M}
+    throw(ArgumentError("""
+        Unknown filter mode: $(repr(M)).
+        Valid modes: :missing_cols, :missing_rows, :property_cols,
+        :property_rows, :frequency, :entropy, :zscore, :cast
+    """))
+end
 
-        for v in df[:, c]
-            count_dictionary[v] = get(count_dictionary, v, 0) + 1
-        end
+################################################################################
 
-        freq = maximum([count_dictionary[k] for k in keys(count_dictionary)]) / length(df[:, c])
+function filter_df(df::AbstractDataFrame, ::Val{:missing_cols};
+                   max_missing::Int,
+                   colnames::AbstractVector=String[])
+    cols = _resolve_cols(df, colnames)
+    bad  = filter(c -> count(ismissing, df[!, c]) > max_missing, cols)
+    return isempty(bad) ? copy(df) : select(df, Not(bad))
+end
 
-        if freq >= frequency_threshold
-            push!(to_drop, c)
-        end
+function filter_df(df::AbstractDataFrame, ::Val{:missing_rows};
+                   max_missing::Int,
+                   colnames::AbstractVector=String[])
+    cols = _resolve_cols(df, colnames)
+    keep = [count(ismissing, (row[c] for c in cols)) <= max_missing
+            for row in eachrow(df)]
+    return df[keep, :]
+end
+
+function filter_df(df::AbstractDataFrame, ::Val{:property_cols};
+                   max_occurrences::Int,
+                   property=ismissing,
+                   colnames::AbstractVector=String[])
+    cols = _resolve_cols(df, colnames)
+    bad  = filter(c -> count(property, df[!, c]) >= max_occurrences, cols)
+    return isempty(bad) ? copy(df) : select(df, Not(bad))
+end
+
+function filter_df(df::AbstractDataFrame, ::Val{:property_rows};
+                   max_occurrences::Int,
+                   property=ismissing,
+                   colnames::AbstractVector=String[])
+    cols = _resolve_cols(df, colnames)
+    keep = [count(property, (row[c] for c in cols)) < max_occurrences
+            for row in eachrow(df)]
+    return df[keep, :]
+end
+
+function filter_df(df::AbstractDataFrame, ::Val{:frequency};
+                   frequency_threshold::Real=0.6,
+                   colnames::AbstractVector=String[])
+    cols = _resolve_cols(df, colnames)
+    bad  = filter(cols) do c
+        vals = collect(skipmissing(df[!, c]))
+        isempty(vals) && return false
+        maximum(values(countmap(vals))) / length(vals) >= frequency_threshold
     end
-    
-    return select(df, Not(to_drop))
+    return isempty(bad) ? copy(df) : select(df, Not(bad))
 end
 
-function entropy(col)
-    counts = countmap(col)
-    n = length(col)
-    ps = values(counts) ./ n
-    return -sum(p -> p == 0 ? 0.0 : p * log(p), ps)
+function filter_df(df::AbstractDataFrame, ::Val{:entropy};
+                   entropy_threshold::Real=0.5,
+                   colnames::AbstractVector=String[])
+    cols = _resolve_cols(df, colnames)
+    bad  = filter(c -> _col_entropy(df[!, c]) < entropy_threshold, cols)
+    return isempty(bad) ? copy(df) : select(df, Not(bad))
 end
 
-function filter_by_entropy(df, column_names; entropy_threshold=0.5)
-    to_drop = []
+function filter_df(df::AbstractDataFrame, ::Val{:zscore};
+                   z_threshold::Real=1.65,
+                   colnames::AbstractVector=String[])
+    cols = isempty(colnames) ?
+        filter(c -> eltype(df[!, c]) <: Union{Real, Missing}, names(df)) :
+        collect(String, colnames)
 
-    for c in column_names
-        H = entropy(df[!, c])
-
-        if H < entropy_threshold
-            push!(to_drop, c)
-        end
+    keep = trues(nrow(df))
+    for c in cols
+        col = df[!, c]
+        μ   = mean(skipmissing(col))
+        σ   = std(skipmissing(col))
+        σ == 0 && continue
+        keep .&= [ismissing(v) || abs((v - μ) / σ) <= z_threshold for v in col]
     end
-
-    return select(df, Not(to_drop))
+    return df[keep, :]
 end
 
-function cast_columns(df; cast_threshold=10)
-    for col in names(df)
-        x = df[!, col]
+function filter_df(df::AbstractDataFrame, ::Val{:cast};
+                   cast_threshold::Int=30)
+    out = copy(df)
+    for col in names(out)
+        x = out[!, col]
+        T = eltype(x)
 
-        if eltype(x) <: Union{AbstractString,Bool,Missing}
-            df[!, col] = categorical(x)
-        elseif eltype(x) <: Real
-            # if there are a few unique values, then this is categorical
-            if length(unique(x)) <= cast_threshold
-                df[!, col] = categorical(x)
+        if T <: Union{AbstractString, Bool, Missing}
+            out[!, col] = categorical(x)
+        elseif T <: Union{Real, Missing}
+            if length(unique(skipmissing(x))) <= cast_threshold
+                out[!, col] = categorical(x)
             else
-                df[!, col] = Float64.(x)
+                out[!, col] = passmissing(Float64).(x)
             end
         else
-            # default case is categorical
-            df[!, col] = categorical(string.(x))
+            out[!, col] = categorical(string.(x))
         end
     end
-
-    return df
+    return out
 end
-
-function filter_variance()
-
-end
-
-function filter_threshold()
-
-end
-
-# """
-# TODO: document
-# """
-# function make_categorical!(df; threshold=10)
-#     for col in names(df)
-#         v = df[!, col]
-#
-#         # Skip columns that are entirely missing
-#         all(ismissing, v) && continue
-#
-#         # Work on non-missing values
-#         vals = collect(skipmissing(v))
-#         nunique = length(unique(vals))
-#
-#         if eltype(v) <: AbstractString || eltype(v) <: Bool
-#             df[!, col] = categorical(v)
-#
-#         elseif eltype(v) <: Number && nunique <= threshold
-#             df[!, col] = categorical(v)
-#         end
-#     end
-#
-#     return df
-# end
-

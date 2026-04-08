@@ -31,7 +31,7 @@ begin
 	using DataFrames
 	using StatFiles
 	using FileIO
-	include(joinpath(@__DIR__, "..", "utils", "filters2.jl"));
+	include(joinpath(@__DIR__, "..", "utils", "filters.jl"));
 
 	using Serialization
 end
