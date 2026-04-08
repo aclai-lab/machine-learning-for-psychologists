@@ -461,7 +461,10 @@ df_ent_filter = filter_df(df_freq_filter, :entropy; entropy_threshold=entropy_th
 size(df_ent_filter)
 
 # ╔═╡ 4df2d89d-535c-44e0-9214-166488734bb1
-df_typed = filter_df(df_ent_filter, :cast; cast_threshold=30)
+df_typed = filter_df(df_ent_filter, :cast; cast_threshold=6)
+
+# ╔═╡ be46766b-e6b3-42f9-b75f-e52b3f54709e
+unique(df_typed[:,"reason_lost_weight"])
 
 # ╔═╡ f003e809-f161-4a3d-a5ee-29274de832c3
 categorical_names = []
@@ -585,6 +588,7 @@ Serialization.serialize(SERIALIZE_PATH, df_naout)
 # ╠═614c9e71-fa66-4f9d-b881-31c9b36d1f2d
 # ╠═9abf6b58-c702-4c9f-bbf2-121a98a1054b
 # ╠═4df2d89d-535c-44e0-9214-166488734bb1
+# ╠═be46766b-e6b3-42f9-b75f-e52b3f54709e
 # ╠═f003e809-f161-4a3d-a5ee-29274de832c3
 # ╠═744af9df-a615-43a7-8003-836a3bf482a1
 # ╠═d9f671c5-d194-43e2-8bb8-9a5eef7b8f1d
