@@ -48,7 +48,9 @@ md"""
 
 # ╔═╡ e202a63d-b119-47ac-bf70-6516fb29f423
 begin
-	DATA_PATH = joinpath(@__DIR__, "..", "datasets", "not_onco_combined_dataset")
+	DATASET_FOLDER = joinpath(@__DIR__, "..", "datasets")
+	
+	DATA_PATH = joinpath(DATASET_FOLDER, "not_onco_combined_dataset")
 	SAV_PATH = "$(DATA_PATH).sav"
 	CSV_PATH = "$(DATA_PATH).csv"
 end
@@ -313,7 +315,7 @@ n_rows, n_cols = size(df)
 histogram(collect(skipmissing(df[:, colname])), xlabel=colname, ylabel="Count", title=colname, legend=false)
 
 # ╔═╡ 8d047693-fc98-44da-8ba2-53b43c0ffb88
-@bind perc_missing_col Slider(0:0.05:1, show_value=true, default=1.0)
+@bind perc_missing_col Slider(0:0.05:1, show_value=true, default=0.6)
 
 # ╔═╡ c77ca35d-d91d-440e-85f0-1926ed3848a6
 max_missing_instances = round(Int, perc_missing_col * n_rows);
@@ -335,7 +337,7 @@ Now $(df_nmc_cols) columns remains.
 """
 
 # ╔═╡ 9b0d582d-97cc-4015-a554-1933a44f2c35
-@bind perc_missing_row Slider(0:0.01:1, show_value=true, default=1.0)
+@bind perc_missing_row Slider(0:0.01:1, show_value=true, default=0.6)
 
 # ╔═╡ f9fa4262-616a-446e-8f36-1e1f4e057b6d
 max_missing_along_row = round(Int, perc_missing_row * df_nmc_cols);
@@ -461,10 +463,7 @@ df_ent_filter = filter_df(df_freq_filter, :entropy; entropy_threshold=entropy_th
 size(df_ent_filter)
 
 # ╔═╡ 4df2d89d-535c-44e0-9214-166488734bb1
-df_typed = filter_df(df_ent_filter, :cast; cast_threshold=6)
-
-# ╔═╡ be46766b-e6b3-42f9-b75f-e52b3f54709e
-unique(df_typed[:,"reason_lost_weight"])
+df_typed = filter_df(df_ent_filter, :cast; cast_threshold=10)
 
 # ╔═╡ f003e809-f161-4a3d-a5ee-29274de832c3
 categorical_names = []
@@ -484,29 +483,30 @@ for name in names(df_typed)
 end
 
 # ╔═╡ 8019cb0e-f560-4c80-a0cd-13061fe08d84
-#begin
-#	entropies = Dict(name => entropy(df_typed[:, name]) for name in
-#					 categorical_names)
-#	sorted_entropies = sort(collect(entropies), by = x -> -x[2])
-#	println("Top informative columns by entropy:")
-#	for (col, ent) in sorted_entropies[1:10]
-#	    println("$col → $ent")
-#	end
-#end
-
-# ╔═╡ 313f4c84-5d29-4b41-a638-043ace8f31a3
-#numeric_attributes
-
-# ╔═╡ 6d407c8a-33e9-4259-94d1-3a566ebd5982
-md"""
-# Variance Filter and Threshold Limiter (Z-score)
-"""
+begin
+	# TODO: move in a utils file
+	function categorical_entropy(col)
+		counts = values(countmap(col))
+		probs = collect(counts) ./ sum(counts)
+		return entropy(probs)
+	end
+	
+	entropies = Dict(name => categorical_entropy(df_typed[:, name]) for name in categorical_names)
+	
+	sorted_entropies = sort(collect(entropies), by = x -> -x[2])
+	
+	println("Top informative columns by entropy:")
+	for (col, ent) in sorted_entropies[1:10]
+	    println("$col → $ent")
+	end
+end
 
 # ╔═╡ 18f675bf-9aff-4809-a3c7-f6d36c9527d9
 @bind name_of_numeric_attribute Select(numeric_attributes)
 
 # ╔═╡ 94eadd14-2445-4ecc-a678-e8fc981674d8
 begin
+	# TODO: substitute with zscore (StatsBase)
 	age_column = df_typed[:, name_of_numeric_attribute]
 	mu = mean(age_column)
 	sigma = std(age_column)
@@ -517,7 +517,7 @@ end
 @bind z_score Slider(0.01:0.05:4, show_value=true, default=1.65)
 
 # ╔═╡ d5851387-9ceb-41ca-9e7a-e4064080e8cb
-df_naout = filter_df(df_typed, :zscore; z_threshold=z_score)
+df_naout = filter_df(df_typed, :zscore; z_threshold=z_score);
 
 # ╔═╡ 8ce43c96-8d64-4faf-8185-79149c525c7f
 plot(
@@ -528,18 +528,19 @@ plot(
 
 # ╔═╡ 9eee2f67-92b8-48c2-b502-73efa704562c
 md"""
-# Learning 
-in the next lesson
+# Serialization
 """
 
 # ╔═╡ b391021e-719e-412f-b13d-637fc5bcbe0c
-SERIALIZE_PATH = joinpath(DATA_PATH, "share_clean.jls")
+SERIALIZE_PATH = joinpath(DATASET_FOLDER, "share_clean.jls")
 
-# ╔═╡ b2a9136f-3cd5-4f7c-b3af-56a314a7971e
-mkpath(SERIALIZE_PATH)
+# ╔═╡ dad65f84-7df0-4d40-a837-450d2402ddfc
+open(SERIALIZE_PATH, "w") do f
+    println(f, "")
+end
 
 # ╔═╡ 20e435bd-fa83-4dfc-9c91-bae4a97478fd
-Serialization.serialize(SERIALIZE_PATH, df_naout)
+serialize(SERIALIZE_PATH, df_naout)
 
 # ╔═╡ Cell order:
 # ╟─49733da1-b29a-41cd-a1dd-3d748ca70f97
@@ -588,19 +589,16 @@ Serialization.serialize(SERIALIZE_PATH, df_naout)
 # ╠═614c9e71-fa66-4f9d-b881-31c9b36d1f2d
 # ╠═9abf6b58-c702-4c9f-bbf2-121a98a1054b
 # ╠═4df2d89d-535c-44e0-9214-166488734bb1
-# ╠═be46766b-e6b3-42f9-b75f-e52b3f54709e
 # ╠═f003e809-f161-4a3d-a5ee-29274de832c3
 # ╠═744af9df-a615-43a7-8003-836a3bf482a1
 # ╠═d9f671c5-d194-43e2-8bb8-9a5eef7b8f1d
 # ╠═8019cb0e-f560-4c80-a0cd-13061fe08d84
-# ╠═313f4c84-5d29-4b41-a638-043ace8f31a3
-# ╟─6d407c8a-33e9-4259-94d1-3a566ebd5982
 # ╠═18f675bf-9aff-4809-a3c7-f6d36c9527d9
 # ╠═94eadd14-2445-4ecc-a678-e8fc981674d8
 # ╠═d88e83ce-a1d5-4b6d-9f49-061a307dbee4
 # ╠═d5851387-9ceb-41ca-9e7a-e4064080e8cb
 # ╠═8ce43c96-8d64-4faf-8185-79149c525c7f
-# ╟─9eee2f67-92b8-48c2-b502-73efa704562c
+# ╠═9eee2f67-92b8-48c2-b502-73efa704562c
 # ╠═b391021e-719e-412f-b13d-637fc5bcbe0c
-# ╠═b2a9136f-3cd5-4f7c-b3af-56a314a7971e
+# ╠═dad65f84-7df0-4d40-a837-450d2402ddfc
 # ╠═20e435bd-fa83-4dfc-9c91-bae4a97478fd
