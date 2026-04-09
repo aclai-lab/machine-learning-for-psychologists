@@ -563,8 +563,6 @@ md"""
 # Further filterings
 
 We proceed to remove the columns having very skewed categorical distributions, with at least a `frequency_threshold` percentage of identical values.
-
-TODO: write about entropy
 """
 
 # ╔═╡ 9bb12323-c3d8-4a40-a076-cf3c35fab32d
@@ -575,6 +573,23 @@ df_freq_filter = filter_df(df_euro_clean, :frequency; frequency_threshold=freque
 
 # ╔═╡ a6b4bfef-7486-493d-b4e4-e6717d34c942
 size(df_freq_filter)
+
+# ╔═╡ cfc63ecc-56e9-4347-b9af-122b83a2f9a3
+md"""
+As a more refined strategy, let us compute the *informative entropy* ``H(X)`` along each column ``X = \{x_1, x_2, \ldots, x_n\}``.
+
+```math 
+H(X) = - \sum_{i=1}^{n} p(x_i)\,\log_2 p(x_i)
+```
+"""
+
+# ╔═╡ fb0f73e5-cc1e-4209-a479-3185017ec801
+md"""
+!!! info "Interpreting Entropy"
+	Entropy is a way to describe how much chaotic a system is.
+
+	TODO explain this.
+"""
 
 # ╔═╡ 7d9670d1-24d9-43ba-b0c5-90dbcd526f99
 @bind entropy_threshold Slider(0:0.05:1, show_value=true, default=0.5)
@@ -720,13 +735,15 @@ serialize(SERIALIZE_PATH, df_naout)
 # ╟─d7a4f151-e158-43ec-948d-3f0f98fe0729
 # ╠═f5fb9a1d-de7c-4a60-a3b3-6200386d44f5
 # ╠═73b63a56-8d36-4995-8157-1838ab882aaa
-# ╟─623a6bdf-7e23-4511-a974-a38515f8716a
+# ╠═623a6bdf-7e23-4511-a974-a38515f8716a
 # ╠═fb5b262b-c8f3-44ed-8c3d-96fb20ad227a
 # ╠═14fc7835-c63f-406e-984f-d5279640bf8e
 # ╟─853494bf-dab0-4c17-8b00-62960b98cd28
 # ╠═9bb12323-c3d8-4a40-a076-cf3c35fab32d
 # ╠═9bd07589-0e70-401a-aabd-11772b32aa34
 # ╠═a6b4bfef-7486-493d-b4e4-e6717d34c942
+# ╠═cfc63ecc-56e9-4347-b9af-122b83a2f9a3
+# ╠═fb0f73e5-cc1e-4209-a479-3185017ec801
 # ╠═7d9670d1-24d9-43ba-b0c5-90dbcd526f99
 # ╠═73673f42-49cc-442c-b621-2a68b237c870
 # ╠═569c8cb3-6a72-4c63-8455-1c09316b6aca
