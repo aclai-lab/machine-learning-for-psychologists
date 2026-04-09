@@ -337,7 +337,7 @@ md"""
 """
 
 # ╔═╡ a0e4c864-da20-4020-8f90-5f311ec1ba00
-dropped_variables = [ "mergeid", "hhid5", "hhid6", "hhid7", "mergeidp5", "mergeidp6", "mergeidp7", "coupleid5", "coupleid6", "coupleid7", "ph008d1", "ph054_", "ph080d1", "ph080d2", "ph080d3", "ph080d4", "ph080d5", "ph080d6", "ph080d7", "ph080d8", "ph080d9", "ph080d10", "ph080d11", "ph080d12", "ph080d13", "ph080d14", "ph080d15", "ph080d16", "ph080d17", "ph080d18", "ph080d19", "ph080d20", "ph080d21", "ph080d22", "ph080dot", "ph087d1", "ph087d2", "ph087d3", "ph087d4", "ph087d5", "ph087d6", "ph087d7", "ph088_", "ph089dno", "ph082_", "ph006d21", "ph049d14", "ph049d15", "ph050_", "ph051_", "ph059d1", "ph059d2", "ph059d3", "ph059d4", "ph059d5", "ph059d6", "ph059d7", "ph059d8", "ph059d9", "ph059d10", "ph059dno", "ph059dot", "ph690d1", "ph690d2", "ph690d3", "ph690d4", "ph745_","ph009_1","ph009_2","ph009_3","ph009_4","ph009_5","ph009_6","ph009_10","ph009_11","ph009_12","ph009_13","ph009_14","ph009_15","ph009_16","ph009_18","ph009_19","ph009_20","ph009_other"]
+dropped_variables = [ "mergeid", "hhid5", "hhid6", "hhid7", "mergeidp5", "mergeidp6", "mergeidp7", "coupleid5", "coupleid6", "coupleid7", "wave", "ph008d1", "ph054_", "ph080d1", "ph080d2", "ph080d3", "ph080d4", "ph080d5", "ph080d6", "ph080d7", "ph080d8", "ph080d9", "ph080d10", "ph080d11", "ph080d12", "ph080d13", "ph080d14", "ph080d15", "ph080d16", "ph080d17", "ph080d18", "ph080d19", "ph080d20", "ph080d21", "ph080d22", "ph080dot", "ph087d1", "ph087d2", "ph087d3", "ph087d4", "ph087d5", "ph087d6", "ph087d7", "ph088_", "ph089dno", "ph082_", "ph006d21", "ph049d14", "ph049d15", "ph050_", "ph051_", "ph059d1", "ph059d2", "ph059d3", "ph059d4", "ph059d5", "ph059d6", "ph059d7", "ph059d8", "ph059d9", "ph059d10", "ph059dno", "ph059dot", "ph690d1", "ph690d2", "ph690d3", "ph690d4", "ph745_", "ph009_1", "ph009_2", "ph009_3", "ph009_4", "ph009_5", "ph009_6", "ph009_10", "ph009_11", "ph009_12", "ph009_13", "ph009_14", "ph009_15", "ph009_16", "ph009_18", "ph009_19", "ph009_20", "ph009_other", "hc012_", "hc029_", "hc114_", "hc115_", "hc125_", "ph009_21"]
 
 # ╔═╡ e550be57-eab2-4064-b3fd-2b87c45cecbd
 df = select(df_raw, Not(dropped_variables))
@@ -504,7 +504,7 @@ scatter(
 	markerstrokewidth=0,
 	markersize=1,
 	xlabel="Euro-d depression at follow up",
-	ylabel="Age",
+	ylabel=target_attribute,
 )
 
 # ╔═╡ 660c38a6-2ad0-4e37-a083-d08b3c1d6413
@@ -546,7 +546,7 @@ As we will see when training machine learning models, we assume that data never 
 
 We can *impute* missing values following at least two strategies.
 
-TODO: use both univariate and multivariate feature imputation.
+TODO: use both univariate and multivariate feature imputation; probably, it is better to move this step in another notebook, leveraging MLJ before learning trees.
 """
 
 # ╔═╡ fb5b262b-c8f3-44ed-8c3d-96fb20ad227a
@@ -558,17 +558,34 @@ for col in names(df_euro_clean)
     df_euro_clean[!, col] = coalesce.(df_euro_clean[!, col], mode_val)
 end
 
+# ╔═╡ 853494bf-dab0-4c17-8b00-62960b98cd28
+md"""
+# Further filterings
+
+We proceed to remove the columns having very skewed categorical distributions, with at least a `frequency_threshold` percentage of identical values.
+
+TODO: write about entropy
+"""
+
 # ╔═╡ 9bb12323-c3d8-4a40-a076-cf3c35fab32d
 @bind frequency_threshold Slider(0:0.05:1, show_value=true, default=0.6)
 
 # ╔═╡ 9bd07589-0e70-401a-aabd-11772b32aa34
 df_freq_filter = filter_df(df_euro_clean, :frequency; frequency_threshold=frequency_threshold)
 
+# ╔═╡ a6b4bfef-7486-493d-b4e4-e6717d34c942
+size(df_freq_filter)
+
 # ╔═╡ 7d9670d1-24d9-43ba-b0c5-90dbcd526f99
 @bind entropy_threshold Slider(0:0.05:1, show_value=true, default=0.5)
 
 # ╔═╡ 73673f42-49cc-442c-b621-2a68b237c870
 size(df_freq_filter)
+
+# ╔═╡ 569c8cb3-6a72-4c63-8455-1c09316b6aca
+md"""
+TODO: put here a little theoretical consideration about entropy
+"""
 
 # ╔═╡ 614c9e71-fa66-4f9d-b881-31c9b36d1f2d
 df_ent_filter = filter_df(df_freq_filter, :entropy; entropy_threshold=entropy_threshold)
@@ -670,7 +687,7 @@ serialize(SERIALIZE_PATH, df_naout)
 # ╟─7db28b02-a364-4bd0-84fe-be7c2d87e2cc
 # ╟─c88ab2ca-0a1a-4065-b1bb-10858e45b599
 # ╟─276b5cc2-b96c-4ddb-83dc-4ffb71978982
-# ╟─a0e4c864-da20-4020-8f90-5f311ec1ba00
+# ╠═a0e4c864-da20-4020-8f90-5f311ec1ba00
 # ╠═35c37143-19be-4504-a289-6404c794c617
 # ╠═e6228654-1fd3-433d-8cc3-0ebda46e90af
 # ╠═b7dc3954-e7e2-4064-b96b-0f18ac20fd45
@@ -706,10 +723,13 @@ serialize(SERIALIZE_PATH, df_naout)
 # ╟─623a6bdf-7e23-4511-a974-a38515f8716a
 # ╠═fb5b262b-c8f3-44ed-8c3d-96fb20ad227a
 # ╠═14fc7835-c63f-406e-984f-d5279640bf8e
+# ╟─853494bf-dab0-4c17-8b00-62960b98cd28
 # ╠═9bb12323-c3d8-4a40-a076-cf3c35fab32d
 # ╠═9bd07589-0e70-401a-aabd-11772b32aa34
+# ╠═a6b4bfef-7486-493d-b4e4-e6717d34c942
 # ╠═7d9670d1-24d9-43ba-b0c5-90dbcd526f99
 # ╠═73673f42-49cc-442c-b621-2a68b237c870
+# ╠═569c8cb3-6a72-4c63-8455-1c09316b6aca
 # ╠═614c9e71-fa66-4f9d-b881-31c9b36d1f2d
 # ╠═9abf6b58-c702-4c9f-bbf2-121a98a1054b
 # ╠═4df2d89d-535c-44e0-9214-166488734bb1
