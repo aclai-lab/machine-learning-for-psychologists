@@ -111,7 +111,7 @@ md"""
 # ╔═╡ c88ab2ca-0a1a-4065-b1bb-10858e45b599
 attribute_names = Dict(
 	# Section 1: Sociodemographic
-    "age_int" => "age",
+	"age_int" => "age",
     "dn042_" => "gender",
     "dn503_" => "ethnicity",
     "dn014_" => "marital_status",
@@ -138,7 +138,7 @@ attribute_names = Dict(
     "it003_" => "computer_skills",
     "hh022_" => "perception_of_neighbourhood",
     "hh025_" => "people_who_would_help",
-    "hh017e" => "low_income",  
+    "hh017e" => "low_income",
 
 	# Section 2: Mental Health
 	
@@ -313,7 +313,7 @@ attribute_names = Dict(
     "ph004_" => "long_term_illness_disability",
     "ph005_" => "limited_activity",
     "ph008d2"  => "oral_cancer",
-    "ph008d3"  => "larynx_cancer",	
+    "ph008d3"  => "larynx_cancer",
     "ph008d4"  => "pharynx_cancer",
     "ph008d5"  => "thryoid_cancer",
     "ph008d6"  => "lung_cancer",
@@ -513,7 +513,7 @@ Finally, we try to visualize the ratio between depressed and non-depressed patie
 """
 
 # ╔═╡ fe25627e-3fbf-462c-a0aa-82d0179cd9bb
-@bind df_euro_colname Select(names(df_euro))
+@bind df_euro_colname Select(filter(n -> n != "euro_d", names(df_euro)))
 
 # ╔═╡ 6243c7c3-8d9f-40a7-9276-bf80c92bd242
 begin
@@ -533,7 +533,8 @@ Probably, the best idea here is to just discard them.
 """
 
 # ╔═╡ f5fb9a1d-de7c-4a60-a3b3-6200386d44f5
-df_euro_clean = select(df_euro_temp, Not(euro_d_attributes))
+# Mybe Fix: use df_euro (not df_euro_temp) so euro_d is always preserved
+df_euro_clean = select(df_euro, Not(euro_d_attributes))
 
 # ╔═╡ 73b63a56-8d36-4995-8157-1838ab882aaa
 size(df_euro_clean)
@@ -554,6 +555,7 @@ TODO: use both univariate and multivariate feature imputation; probably, it is b
 
 # ╔═╡ 14fc7835-c63f-406e-984f-d5279640bf8e
 for col in names(df_euro_clean)
+	col == "euro_d" && continue  # skip: euro_d has no missing values
 	mode_val = impute_strategy(df_euro_clean[!, col])
     df_euro_clean[!, col] = coalesce.(df_euro_clean[!, col], mode_val)
 end
@@ -571,7 +573,9 @@ TODO: write about entropy
 @bind frequency_threshold Slider(0:0.05:1, show_value=true, default=0.6)
 
 # ╔═╡ 9bd07589-0e70-401a-aabd-11772b32aa34
-df_freq_filter = filter_df(df_euro_clean, :frequency; frequency_threshold=frequency_threshold)
+df_freq_filter = filter_df(df_euro_clean, :frequency;
+	frequency_threshold=frequency_threshold,
+	ignore_cols=["euro_d"])
 
 # ╔═╡ a6b4bfef-7486-493d-b4e4-e6717d34c942
 size(df_freq_filter)
@@ -588,13 +592,17 @@ TODO: put here a little theoretical consideration about entropy
 """
 
 # ╔═╡ 614c9e71-fa66-4f9d-b881-31c9b36d1f2d
-df_ent_filter = filter_df(df_freq_filter, :entropy; entropy_threshold=entropy_threshold)
+df_ent_filter = filter_df(df_freq_filter, :entropy;
+	entropy_threshold=entropy_threshold,
+	ignore_cols=["euro_d"])
 
 # ╔═╡ 9abf6b58-c702-4c9f-bbf2-121a98a1054b
 size(df_ent_filter)
 
 # ╔═╡ 4df2d89d-535c-44e0-9214-166488734bb1
-df_typed = filter_df(df_ent_filter, :cast; cast_threshold=10)
+df_typed = filter_df(df_ent_filter, :cast;
+	cast_threshold=10,
+	ignore_cols=["euro_d"])
 
 # ╔═╡ f003e809-f161-4a3d-a5ee-29274de832c3
 categorical_names = []
@@ -604,6 +612,7 @@ numeric_attributes = []
 
 # ╔═╡ d9f671c5-d194-43e2-8bb8-9a5eef7b8f1d
 for name in names(df_typed)
+	name == "euro_d" && continue
 	if df_typed[1,name] isa CategoricalValue
 		push!(categorical_names, name)
 		println("Categorical: $(name)")
@@ -648,7 +657,9 @@ end
 @bind z_score Slider(0.01:0.05:4, show_value=true, default=1.65)
 
 # ╔═╡ d5851387-9ceb-41ca-9e7a-e4064080e8cb
-df_naout = filter_df(df_typed, :zscore; z_threshold=z_score);
+df_naout = filter_df(df_typed, :zscore;
+	z_threshold=z_score,
+	ignore_cols=["euro_d"])
 
 # ╔═╡ 8ce43c96-8d64-4faf-8185-79149c525c7f
 plot(
