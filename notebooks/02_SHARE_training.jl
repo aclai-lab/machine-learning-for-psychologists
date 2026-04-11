@@ -158,36 +158,52 @@ We proceed to leverage the training data to *induce a decision tree*.
 The driver engine is MLJ, but the learning logic comes from a famous package of the Julia community (DecisionTreeClassifier).
 """
 
+# ╔═╡ 24820e34-fbb2-4470-8ebb-ad225e5ad2f5
+md"""
+!!! info "Hyperparameters"
+	TODO: explain what are hyperparameters
+"""
+
+# ╔═╡ 64d0496d-51f0-48f1-9068-f34328d7a857
+md"""
+!!! success "Decision trees"
+	TODO: briefly describe what are decision trees (if-else logical formulae) and what are they hyperparameters
+"""
+
 # ╔═╡ b1000000-3353-11f1-90b2-21952756a80b
 begin
-    try
-        DecisionTreeClassifier = @load DecisionTreeClassifier pkg=DecisionTree
-    catch
-        println("DecisionTreeClassifier already imported.")
-    end
+    DecisionTreeClassifier = @load DecisionTreeClassifier pkg=DecisionTree verbosity=0
 end
 
-# ╔═╡ c1ea8a00-0772-4717-af4b-cf848a825a10
-possible_depths = collect(1:10)
+# ╔═╡ 2c75bd13-ef9b-4d2d-b941-3a78f97760b3
+md"""
+We define 10 different trees with different settings of the hyperparameters; then, we select one specific tree with a slider and proceed to train it.
 
-# ╔═╡ 6d24d012-d0ba-4cfa-80a3-2126833c7f80
-begin
-	models = []
-	for d in possible_depths
-		model = MLJDecisionTreeInterface.DecisionTreeClassifier(
-	    	max_depth         = d,
-	    	min_samples_leaf  = 1,
-	    	min_samples_split = 2
-		)
-		push!(models,model)
-	end
+Note that the settings we propose here are trivial: we only change the **max_depth** of each tree, from one to ten. Later, we are going to make the training pipeline more robust, exploring different parameterizations automatically. 
+"""
+
+# ╔═╡ c1ea8a00-0772-4717-af4b-cf848a825a10
+possible_max_depths = collect(1:10)
+
+# ╔═╡ ebe914ce-c030-4bb6-bee7-f72713da1954
+models = DecisionTreeClassifier[]
+
+# ╔═╡ df689893-a895-4b3e-85a2-5364274bf575
+for d in possible_max_depths
+	model = MLJDecisionTreeInterface.DecisionTreeClassifier(
+    	max_depth = d,
+    	min_samples_leaf = 1,
+    	min_samples_split = 2,
+		min_purity_increase = 0.0,
+		n_subfeatures = 0.0,
+		post_prune = false,
+		merge_purity_threshold = 0.9
+	)
+	push!(models,model)
 end
 
 # ╔═╡ b3000000-3353-11f1-90b2-21952756a80b
-@bind max_depth_value Slider(possible_depths, default=5, show_value=true)
-
-# ╔═╡ 6fa2ba7c-720a-46be-a2ac-4a28115b4d84
-##TODO: spieghiamo varie robe 
+@bind max_depth_value Slider(possible_max_depths, default=5, show_value=true)
 
 # ╔═╡ b4000000-3353-11f1-90b2-21952756a80b
 model = models[max_depth_value]
@@ -364,11 +380,14 @@ md"""
 # ╠═d9bac238-70b3-43a0-95c5-99fb5ae96b92
 # ╠═57d8be18-2370-4fbc-bc69-eb54898e9dff
 # ╟─6b94d7db-7f2f-4471-8999-b138b6b0c448
+# ╠═24820e34-fbb2-4470-8ebb-ad225e5ad2f5
+# ╟─64d0496d-51f0-48f1-9068-f34328d7a857
 # ╠═b1000000-3353-11f1-90b2-21952756a80b
+# ╟─2c75bd13-ef9b-4d2d-b941-3a78f97760b3
 # ╠═c1ea8a00-0772-4717-af4b-cf848a825a10
-# ╠═6d24d012-d0ba-4cfa-80a3-2126833c7f80
+# ╠═ebe914ce-c030-4bb6-bee7-f72713da1954
+# ╠═df689893-a895-4b3e-85a2-5364274bf575
 # ╠═b3000000-3353-11f1-90b2-21952756a80b
-# ╠═6fa2ba7c-720a-46be-a2ac-4a28115b4d84
 # ╠═b4000000-3353-11f1-90b2-21952756a80b
 # ╠═b5000000-3353-11f1-90b2-21952756a80b
 # ╠═b6000000-3353-11f1-90b2-21952756a80b
