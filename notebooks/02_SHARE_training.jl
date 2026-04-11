@@ -243,20 +243,23 @@ end
 # ╔═╡ b4000000-3353-11f1-90b2-21952756a80b
 model = models[max_depth_value]
 
+# ╔═╡ 31be2aa2-05b2-4428-ae19-316c8737704e
+md"""
+# TODO: DecisionTree cannot work with Multiclass attributes
+Converting every Multiclass to a Continuous is brutal... maybe we can do one hot encoding.
+"""
+
 # ╔═╡ b5000000-3353-11f1-90b2-21952756a80b
 begin
     mach_dt = machine(model, X_train, y_train)
-    fit!(mach_dt, verbosity=0)
+    fit!(mach_dt)
     y_prob_dt = MLJ.predict(mach_dt, X_test)
     y_pred_dt = mode.(y_prob_dt)
-    cm_dt     = confusion_matrix(y_pred_dt, y_test)
+    cm_dt = confusion_matrix(y_pred_dt, y_test)
 end
 
 # ╔═╡ b6000000-3353-11f1-90b2-21952756a80b
 cm_dt
-
-# ╔═╡ 31eb4188-2a5a-42f3-8533-c56c62f0bbaa
-## VOGLIAMO ALLORA FARE PARTISION BILANCIATI 
 
 # ╔═╡ b7000000-3353-11f1-90b2-21952756a80b
 md"**Accuracy Decision Tree (test set):** $(round(accuracy(cm_dt), digits=4))"
@@ -386,8 +389,6 @@ md"""
 md"""
 # TODO
 ----
-- SEPARARE BENE INPUTE NEL NOTEBOOK PRIMA 
-- ORDINARE E COMMENTARE QUESTO CODICE  
 - SOLEMODELS
 - POSTHOC
 """
@@ -425,9 +426,9 @@ md"""
 # ╠═df689893-a895-4b3e-85a2-5364274bf575
 # ╠═b3000000-3353-11f1-90b2-21952756a80b
 # ╠═b4000000-3353-11f1-90b2-21952756a80b
+# ╠═31be2aa2-05b2-4428-ae19-316c8737704e
 # ╠═b5000000-3353-11f1-90b2-21952756a80b
 # ╠═b6000000-3353-11f1-90b2-21952756a80b
-# ╠═31eb4188-2a5a-42f3-8533-c56c62f0bbaa
 # ╟─b7000000-3353-11f1-90b2-21952756a80b
 # ╠═b8000000-3353-11f1-90b2-21952756a80b
 # ╟─b9000000-3353-11f1-90b2-21952756a80b
