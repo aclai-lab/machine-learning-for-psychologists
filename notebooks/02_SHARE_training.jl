@@ -41,8 +41,21 @@ begin
 	include(joinpath(INCLUDE_PATH, "adapters.jl"));
 
 	# just a flag to suppress some warnings
-	scitype_check_level=0
+	scitype_check_level=0;
 end
+
+# ╔═╡ 34bafc6f-ac2a-4cdb-b9c2-f766111251cb
+md"""
+# SHARE Training Pipeline
+
+In this notebook, we are going to leverage **MLJ** and **Sole** to train decision trees and forests for learning and manipulating the theory underlying the SHARE dataset.
+
+MLJ is probably the most famous package in Julia for supporting machine learning workflows with structured (i.e., tabular) data.
+
+Sole is a framework specialized for the treatment of *symbolic* models. Very briefly, it enables the learning of original models, a deep inspection and optimization of the latter, and even dealing with unstructured (i.e., non tabular) data.
+
+It is very common to see "double-connected channels" between MLJ and other packages of the Julia community! As we shall later, Sole is no exception, and the two frameworks can be used in synergy.
+"""
 
 # ╔═╡ 53c022c4-b0f3-42c0-94b0-7114bec855e7
 # code to use to guarantee reproducibility when leveraging randomness
@@ -59,29 +72,44 @@ Here, we load the same exact data.
 # ╔═╡ a2000000-3353-11f1-90b2-21952756a80b
 begin
     DATASET_FOLDER = joinpath(@__DIR__, "..", "datasets")
-    SERIALIZE_PATH = joinpath(DATASET_FOLDER, "share_clean.jls")
+    SERIALIZE_PATH = joinpath(DATASET_FOLDER, "share_clean_test_checkpoint.jls")
 end
 
 # ╔═╡ a3000000-3353-11f1-90b2-21952756a80b
-data = deserialize(SERIALIZE_PATH)
+data = begin
+	try
+		deserialize(SERIALIZE_PATH)
+	catch 
+		println("Something went wrong, maybe you need to change the file path?")
+	end
+end
+
 
 # ╔═╡ cfc1ddfb-3171-41df-a319-7e55b6ac79ad
 md"""
 # Data adaptation
-TODO: write about the fact that we are going to leverage MLJ and its scientific types system.
+In the following notebook, we are going to implement the learning process of a machine learning model (in particular, decision trees and forests).
+
+The data exploration and cleaning process lives on its own, but we need to adapt the DataFrame we just deserialized in order to work with MLJ.
+
+By design, MLJ needs us to convert the attribute types from standard Julia types to the most performant **ScientificTypes**.
 """
 
 # ╔═╡ f0753df6-d698-4649-b5fd-ac7dcb385ce8
 md"""
 !!! warning "Scientific Types"
-	TODO: write about scientific types, that are fundamental to bridge statistics into machine learning.
+	**ScientificTypes.jl** is a very popular and light-weight Julia package, defining a collection of types for implementing conventions about the scientific interpretation of data.
+
+	It makes a clear distinction between the *machine type* of the Julia programming language and the *scientific type*, which reflects how one object should be *interpreted*.
+
+	For our use-case, the *Multiclass* and *Continuous* types are enough. For a list of all the available types, see [the Scientific Types documentation](https://juliaai.github.io/ScientificTypes.jl/dev/reference/#Reference).
 """
 
 # ╔═╡ ea285fa0-cd96-41e2-a8bb-356fd2606eb7
 y = coerce(string.(data[:, :euro_d]), Multiclass)
 
 # ╔═╡ 1295b232-f44e-415e-b69b-b6f20786da58
-X_raw = select(data, Not(:euro_d))
+X_raw = DataFrames.select(data, Not(:euro_d))
 
 # ╔═╡ 9581203e-8089-4d8a-b25a-d3806a499cda
 X_coerced = coerce_dataframe(X_raw)
@@ -89,18 +117,25 @@ X_coerced = coerce_dataframe(X_raw)
 # ╔═╡ a5000000-3353-11f1-90b2-21952756a80b
 schema(X_coerced)
 
+# ╔═╡ 9f0ae520-5f94-4e34-bb03-f8c68a61157a
+size(X_coerced)
+
 # ╔═╡ d4e2b317-92b9-4f59-b63d-91d14d3af828
 md"""
-TODO: describe what is happening here.
+MLJ automatically inferred the correct scientific types for each attribute, and applied the conversion using the *coerce* function. 
+
+As we can see above, however, the Missing type is kept separated from Multiclass, when specifying the type of a categorical value. 
+
+Since the Multiclass scientific type explicits that there is no ordering between the values of an attribute, we can safely convert missings to a numerical value.
 """
 
 # ╔═╡ a6000000-3353-11f1-90b2-21952756a80b
 begin
     imputer = FillImputer()
-    imp_mach = machine(imputer, X_coerced)
-    fit!(imp_mach)
-    X = MLJ.transform(imp_mach, X_coerced)
-    schema(X)
+    mach = machine(imputer, X_coerced)
+    fit!(mach)
+    X = MLJ.transform(mach, X_coerced)
+    schema(X);
 end
 
 # ╔═╡ d2d1e843-88ee-442b-a02f-1539d0ac514b
@@ -130,11 +165,11 @@ end
 # ╔═╡ 6abe7cf4-231c-4f75-839f-6b80891d3088
 md"""
 !!! warning "Unbalanced classes"
-	TODO: explain why having unbalanced classes is dangerous.
+	If some labels/classes appear much more frequently than others, the model may become biased toward predicting the majority class. 
 
-	TODO: mention the fact that we are going to fix this later, using cross validation with stratified sampling.
+	In that case, a naive classifier can achieve deceptively high accuracy simply by always predicting the most common label.
 
-	TODO: warn the student about how to read the bar plot below...
+	Later, we are going to leverage a smarter technique to partition data, and we will we will combine accuracy with metrics that are not thrown off by class imbalance.
 """
 
 # ╔═╡ c70c1204-60a1-4ecf-b0a1-8a60938686ff
@@ -155,32 +190,32 @@ md"""
 
 We proceed to leverage the training data to *induce a decision tree*.
 
-The driver engine is MLJ, but the learning logic comes from a famous package of the Julia community (DecisionTreeClassifier).
-"""
+Actually, we define 10 different trees with different settings of the hyperparameters; then, we select one specific tree with a slider and proceed to train it.
 
-# ╔═╡ 24820e34-fbb2-4470-8ebb-ad225e5ad2f5
-md"""
-!!! info "Hyperparameters"
-	TODO: explain what are hyperparameters
+Note that the settings we propose here are trivial: we only change the max_depth of each tree, from one to ten. Later, we are going to make the training pipeline more robust, exploring different parameterizations automatically
 """
 
 # ╔═╡ 64d0496d-51f0-48f1-9068-f34328d7a857
 md"""
 !!! success "Decision trees"
-	TODO: briefly describe what are decision trees (if-else logical formulae) and what are they hyperparameters
+	A decision tree makes predictions by applying a sequence of if–else rules on the attribute values.
+
+	- Each *internal node* contains a condition (e.g., age > 65);
+	- each *branch* corresponds to the outcome of that condition (i.e., true or false);
+	- each *leaf* node contains the final prediction (e.g., the string "yes" or "no").
+
+	Inducing a decision tree means to compute the most convenient attribute-value pairs onto which to perform the various split and their ordering. 
+
+	All the induction is governed by measuring how much "information is gained" when choosing a certain split; that notion can be intimately connected to the information entropy measure.
 """
+
+# ╔═╡ 76edf51c-7ca6-49d1-85e8-bab1b77c04c2
+LocalResource("../images/decision_tree.png")
 
 # ╔═╡ b1000000-3353-11f1-90b2-21952756a80b
 begin
     DecisionTreeClassifier = @load DecisionTreeClassifier pkg=DecisionTree verbosity=0
 end
-
-# ╔═╡ 2c75bd13-ef9b-4d2d-b941-3a78f97760b3
-md"""
-We define 10 different trees with different settings of the hyperparameters; then, we select one specific tree with a slider and proceed to train it.
-
-Note that the settings we propose here are trivial: we only change the **max_depth** of each tree, from one to ten. Later, we are going to make the training pipeline more robust, exploring different parameterizations automatically. 
-"""
 
 # ╔═╡ c1ea8a00-0772-4717-af4b-cf848a825a10
 possible_max_depths = collect(1:10)
@@ -358,18 +393,20 @@ md"""
 """
 
 # ╔═╡ Cell order:
+# ╟─34bafc6f-ac2a-4cdb-b9c2-f766111251cb
 # ╠═a1000000-3353-11f1-90b2-21952756a80b
 # ╠═53c022c4-b0f3-42c0-94b0-7114bec855e7
 # ╟─d7df4cf0-e938-471a-8284-e741588cf830
 # ╠═a2000000-3353-11f1-90b2-21952756a80b
 # ╠═a3000000-3353-11f1-90b2-21952756a80b
 # ╟─cfc1ddfb-3171-41df-a319-7e55b6ac79ad
-# ╠═f0753df6-d698-4649-b5fd-ac7dcb385ce8
+# ╟─f0753df6-d698-4649-b5fd-ac7dcb385ce8
 # ╠═ea285fa0-cd96-41e2-a8bb-356fd2606eb7
 # ╠═1295b232-f44e-415e-b69b-b6f20786da58
 # ╠═9581203e-8089-4d8a-b25a-d3806a499cda
 # ╠═a5000000-3353-11f1-90b2-21952756a80b
-# ╠═d4e2b317-92b9-4f59-b63d-91d14d3af828
+# ╠═9f0ae520-5f94-4e34-bb03-f8c68a61157a
+# ╟─d4e2b317-92b9-4f59-b63d-91d14d3af828
 # ╠═a6000000-3353-11f1-90b2-21952756a80b
 # ╠═d2d1e843-88ee-442b-a02f-1539d0ac514b
 # ╠═2107b65c-8af3-4914-a0c4-cbd2412bbab4
@@ -380,10 +417,9 @@ md"""
 # ╠═d9bac238-70b3-43a0-95c5-99fb5ae96b92
 # ╠═57d8be18-2370-4fbc-bc69-eb54898e9dff
 # ╟─6b94d7db-7f2f-4471-8999-b138b6b0c448
-# ╠═24820e34-fbb2-4470-8ebb-ad225e5ad2f5
 # ╟─64d0496d-51f0-48f1-9068-f34328d7a857
+# ╠═76edf51c-7ca6-49d1-85e8-bab1b77c04c2
 # ╠═b1000000-3353-11f1-90b2-21952756a80b
-# ╟─2c75bd13-ef9b-4d2d-b941-3a78f97760b3
 # ╠═c1ea8a00-0772-4717-af4b-cf848a825a10
 # ╠═ebe914ce-c030-4bb6-bee7-f72713da1954
 # ╠═df689893-a895-4b3e-85a2-5364274bf575
