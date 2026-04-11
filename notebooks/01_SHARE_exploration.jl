@@ -34,7 +34,7 @@ begin
 	# general utilities for data exploration and values imputation
 	using Statistics
 	using StatsBase
-	using Impute
+	# using Impute
 
 	# our own utilities for cleaning data!
 	INCLUDE_PATH = joinpath(@__DIR__, "..", "utils")
@@ -68,7 +68,7 @@ md"""
 !!! tip
 	In the cell below we define the *filepath* of the binary data to read, `SAV_PATH`, and the filepath where the human-readable CSV version must be saved, `CSV_PATH`.
 
-	To do so, we leverage the `joinpath` funtcion and the `@__DIR__` shortcut; these are crucial to guarantee the reproducibility of your data analysis!
+	To do so, we leverage the `joinpath` function and the `@__DIR__` shortcut; these are crucial to guarantee the reproducibility of your data analysis!
 
 	Try to leverage the documentation of Julia to learn about them (click *Live docs* in the bottom-right corner).
 """
@@ -670,7 +670,7 @@ begin
 end
 
 # ╔═╡ 92a4c81a-8bd4-457a-86da-96be85c3fb89
-@bind entropy_threshold Slider(0.2:0.01:3, show_value=true, default=0.5)
+@bind entropy_threshold Slider(0.2:0.01:3, show_value=true, default=0.7)
 
 # ╔═╡ b0b97508-39a1-4f91-9975-188bbae4cb1b
 begin
@@ -732,17 +732,17 @@ end
 # ╔═╡ d88e83ce-a1d5-4b6d-9f49-061a307dbee4
 @bind z_score_threshold Slider(0.01:0.05:4, show_value=true, default=1.65)
 
-# ╔═╡ cca099f8-16f7-4960-bda0-ac86057be55b
-plot(
-	histogram(df_typed[:, "age"]; title="age distribution", legend=false),
-	histogram(df_naout[:, "age"]; title="age within $(z_score_threshold)σ", legend=false);
-	layout=(1, 2)
-)
-
 # ╔═╡ d5851387-9ceb-41ca-9e7a-e4064080e8cb
 df_no_outliers = filter_df(df_typed, :zscore;
 	z_threshold=z_score_threshold,
-	ignore_cols=["euro_d"])
+	ignore_cols=["euro_d"]);
+
+# ╔═╡ cca099f8-16f7-4960-bda0-ac86057be55b
+plot(
+	histogram(df_typed[:, "age"]; title="age distribution", legend=false),
+	histogram(df_no_outliers[:, "age"]; title="age within $(z_score_threshold)σ", legend=false);
+	layout=(1, 2)
+)
 
 # ╔═╡ 9eee2f67-92b8-48c2-b502-73efa704562c
 md"""
@@ -826,7 +826,7 @@ serialize(SERIALIZE_PATH, df_no_outliers)
 # ╠═9bb12323-c3d8-4a40-a076-cf3c35fab32d
 # ╠═9bd07589-0e70-401a-aabd-11772b32aa34
 # ╠═a6b4bfef-7486-493d-b4e4-e6717d34c942
-# ╠═cfc63ecc-56e9-4347-b9af-122b83a2f9a3
+# ╟─cfc63ecc-56e9-4347-b9af-122b83a2f9a3
 # ╟─85a27e1d-4635-46c7-bd14-89a6e6f088f8
 # ╠═8019cb0e-f560-4c80-a0cd-13061fe08d84
 # ╠═2ea7a28e-3a74-4011-98f4-1c6a8cc639dd
@@ -840,9 +840,9 @@ serialize(SERIALIZE_PATH, df_no_outliers)
 # ╠═9d51ce42-752c-46f2-87bc-c064b952e770
 # ╠═94eadd14-2445-4ecc-a678-e8fc981674d8
 # ╠═d88e83ce-a1d5-4b6d-9f49-061a307dbee4
-# ╠═cca099f8-16f7-4960-bda0-ac86057be55b
 # ╠═d5851387-9ceb-41ca-9e7a-e4064080e8cb
-# ╠═9eee2f67-92b8-48c2-b502-73efa704562c
+# ╠═cca099f8-16f7-4960-bda0-ac86057be55b
+# ╟─9eee2f67-92b8-48c2-b502-73efa704562c
 # ╠═b391021e-719e-412f-b13d-637fc5bcbe0c
 # ╠═dad65f84-7df0-4d40-a837-450d2402ddfc
 # ╠═20e435bd-fa83-4dfc-9c91-bae4a97478fd
