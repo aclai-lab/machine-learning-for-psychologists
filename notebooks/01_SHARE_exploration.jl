@@ -119,6 +119,7 @@ attribute_names = Dict(
     "dn014_" => "marital_status",
     "iv009_" => "residence_rural_urban",
     "hhsize" => "household_size",
+	"isced1997_r" => "education_level",
 
 	# social contacts
     "sp002_" => "social_support_received",
@@ -378,7 +379,7 @@ Using two sliders, one for each case, we are going to set a threshold for how ma
 md"""
 ##### Columns Filtering
 
-$(@bind perc_missing_col Slider(0:0.05:1, show_value=true, default=0.6))
+$(@bind perc_missing_col Slider(0:0.05:1, show_value=true, default=0.4))
 """
 
 
@@ -403,7 +404,7 @@ md"""
 md"""
 ##### Rows Filtering
 
-$(@bind perc_missing_row Slider(0:0.01:1, show_value=true, default=0.6))
+$(@bind perc_missing_row Slider(0:0.01:1, show_value=true, default=0.4))
 """
 
 
@@ -646,7 +647,7 @@ md"""
 
 # ╔═╡ 8019cb0e-f560-4c80-a0cd-13061fe08d84
 begin
-    entropies = Dict(name => entropy(df_typed[:, name]) for name in names(df_typed))
+    entropies = Dict(name => entropy(df_freq_filter[:, name]) for name in names(df_freq_filter))
     sorted_entropies = sort(collect(entropies), by=x -> x[2])
 end
 
@@ -670,7 +671,7 @@ begin
 end
 
 # ╔═╡ 92a4c81a-8bd4-457a-86da-96be85c3fb89
-@bind entropy_threshold Slider(0.2:0.01:3, show_value=true, default=0.7)
+@bind entropy_threshold Slider(0.2:0.01:3, show_value=true, default=1.0)
 
 # ╔═╡ b0b97508-39a1-4f91-9975-188bbae4cb1b
 begin
@@ -718,28 +719,28 @@ LocalResource("../images/standard_deviation_diagram.png")
 
 # ╔═╡ 94eadd14-2445-4ecc-a678-e8fc981674d8
 # begin
-# 	age_column = df_typed[:, name_of_numeric_attribute]
+# 	age_column = df_ent_filter[:, name_of_numeric_attribute]
 # 	mu = mean(age_column)
 # 	sigma = std(age_column)
 # 	z = (age_column .- mu) ./ sigma
 # end
 
 begin
-	age_column = df_typed[:, "age"]
+	age_column = df_ent_filter[:, "age"]
 	z = zscore(age_column)
 end
 
 # ╔═╡ d88e83ce-a1d5-4b6d-9f49-061a307dbee4
-@bind z_score_threshold Slider(0.01:0.05:4, show_value=true, default=1.65)
+@bind z_score_threshold Slider(0.01:0.01:4, show_value=true, default=2.0)
 
 # ╔═╡ d5851387-9ceb-41ca-9e7a-e4064080e8cb
-df_no_outliers = filter_df(df_typed, :zscore;
+df_no_outliers = filter_df(df_ent_filter, :zscore;
 	z_threshold=z_score_threshold,
 	ignore_cols=["euro_d"]);
 
 # ╔═╡ cca099f8-16f7-4960-bda0-ac86057be55b
 plot(
-	histogram(df_typed[:, "age"]; title="age distribution", legend=false),
+	histogram(df_ent_filter[:, "age"]; title="age distribution", legend=false),
 	histogram(df_no_outliers[:, "age"]; title="age within $(z_score_threshold)σ", legend=false);
 	layout=(1, 2)
 )
@@ -753,17 +754,49 @@ Now, we want to save the final result from which we want to learn machine learni
 We use the verb *serialize* instead of *save*, because we decide to write a binary file which we can read from another Pluto.jl notebook, keeping a perfect snapshot of our clean data frame. 
 """
 
-# ╔═╡ b391021e-719e-412f-b13d-637fc5bcbe0c
-SERIALIZE_PATH = joinpath(DATASET_FOLDER, "share_clean.jls")
+# ╔═╡ 12533c7b-ca7f-4960-b969-77ae3f0e9063
+md"""
+!!! tip
+	We would like our "screenshot" to have an informative name, summarizing the whole data processing with an encoding.
 
-# ╔═╡ dad65f84-7df0-4d40-a837-450d2402ddfc
-# this is a little trick to create a new file
-open(SERIALIZE_PATH, "w") do f
-    println(f, "")
+	We should inject the following threshold values in the name of the file:
+
+	`max_missing_instances`
+
+	`max_missing_along_row` 
+
+	`frequency_threshold` 
+	
+	`entropy_threshold` 
+	
+	`z_score_threhsold`
+"""
+
+# ╔═╡ f59ae421-e01c-43f1-9e15-6805f96aa746
+filename = "share_clean_mc_$(max_missing_instances)_mr_$(max_missing_along_row)_ft_$(frequency_threshold)_et_$(entropy_threshold)_zs_$(z_score_threshold).jls"
+
+# ╔═╡ b391021e-719e-412f-b13d-637fc5bcbe0c
+SERIALIZE_PATH = joinpath(DATASET_FOLDER, filename)
+
+# ╔═╡ 639e7cb7-fb43-4a26-9692-29a668f5d430
+function save_files()
+	# this is a little trick to create a new file
+	open(SERIALIZE_PATH, "w") do f
+	    println(f, "")
+	end
+
+	println("Writing to $(SERIALIZE_PATH)")
+	
+    serialize(SERIALIZE_PATH, df_no_outliers)
 end
 
-# ╔═╡ 20e435bd-fa83-4dfc-9c91-bae4a97478fd
-serialize(SERIALIZE_PATH, df_no_outliers)
+# ╔═╡ c709b580-e26a-42be-a5c1-bb76833efd65
+@bind enable_saving Switch(; default=false)
+
+# ╔═╡ 9cac84da-b466-47ec-bf66-1ab648755c9f
+if enable_saving == true
+	save_files()
+end
 
 # ╔═╡ Cell order:
 # ╟─49733da1-b29a-41cd-a1dd-3d748ca70f97
@@ -843,6 +876,9 @@ serialize(SERIALIZE_PATH, df_no_outliers)
 # ╠═d5851387-9ceb-41ca-9e7a-e4064080e8cb
 # ╠═cca099f8-16f7-4960-bda0-ac86057be55b
 # ╟─9eee2f67-92b8-48c2-b502-73efa704562c
+# ╟─12533c7b-ca7f-4960-b969-77ae3f0e9063
+# ╠═f59ae421-e01c-43f1-9e15-6805f96aa746
 # ╠═b391021e-719e-412f-b13d-637fc5bcbe0c
-# ╠═dad65f84-7df0-4d40-a837-450d2402ddfc
-# ╠═20e435bd-fa83-4dfc-9c91-bae4a97478fd
+# ╠═639e7cb7-fb43-4a26-9692-29a668f5d430
+# ╠═c709b580-e26a-42be-a5c1-bb76833efd65
+# ╠═9cac84da-b466-47ec-bf66-1ab648755c9f
