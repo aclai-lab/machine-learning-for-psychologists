@@ -37,7 +37,9 @@ begin
 	using Impute
 
 	# our own utilities for cleaning data!
-	include(joinpath(@__DIR__, "..", "utils", "filters.jl"));
+	INCLUDE_PATH = joinpath(@__DIR__, "..", "utils")
+	include(joinpath(INCLUDE_PATH, "filters.jl"));
+	include(joinpath(INCLUDE_PATH, "adapters.jl"));
 
 	# for the interactive Pluto's environment and plotting
 	using PlutoUI
@@ -533,7 +535,6 @@ Probably, the best idea here is to just discard them.
 """
 
 # ╔═╡ f5fb9a1d-de7c-4a60-a3b3-6200386d44f5
-# Mybe Fix: use df_euro (not df_euro_temp) so euro_d is always preserved
 df_euro_clean = select(df_euro, Not(euro_d_attributes))
 
 # ╔═╡ 73b63a56-8d36-4995-8157-1838ab882aaa
@@ -543,21 +544,61 @@ size(df_euro_clean)
 md"""
 # Imputing Missings
 
-As we will see when training machine learning models, we assume that data never contains missing values.
+As we will see when training machine learning models, they generally cannot handle missing values, and we have to *impute* them.
 
-We can *impute* missing values following at least two strategies.
+First of all, we need to separate categorical and numerical attributes.
 
-TODO: use both univariate and multivariate feature imputation; probably, it is better to move this step in another notebook, leveraging MLJ before learning trees.
+Then, in the former case, we could treat the string "Missing" as a special category or leverage mode statistics.
+
+In the second case we need numbers and we can exploit median and average statistics, other than mode. 
 """
 
+# ╔═╡ 3a34594c-bfd1-4791-8cfb-4649b5d7f09e
+md"""
+!!! warning "Notice the change"
+	Try to move your cursor under the attribute names, in the table below.
+	Notice how **Float64?** is now sometimes updated as **CategoricalValue**.
+"""
+
+# ╔═╡ 26537045-ee8b-496f-82dc-628221894934
+df_typed = filter_df(df_euro_clean, :cast;
+	cast_threshold=10,
+	ignore_cols=["euro_d"])
+
+# ╔═╡ 8d913135-5ee6-407a-aedb-c55b68b3b70d
+categorical_attribute_names = []
+
+# ╔═╡ 4ec2c869-8b09-4b25-9bbe-101d632c096f
+numerical_attribute_names = []
+
+# ╔═╡ 340c97fe-837f-4563-a70e-1f04f9d02818
+for name in names(df_typed)
+	name == "euro_d" && continue
+	if df_typed[1,name] isa CategoricalValue
+		push!(categorical_attribute_names, name)
+		println("Categorical: $(name)")
+	else
+		push!(numerical_attribute_names, name)
+		println("Numeric: $(name)")
+	end
+end
+
 # ╔═╡ fb5b262b-c8f3-44ed-8c3d-96fb20ad227a
-@bind impute_strategy Select([Impute.mode])
+@bind categorical_impute_strategy Select([mode, median])
 
 # ╔═╡ 14fc7835-c63f-406e-984f-d5279640bf8e
-for col in names(df_euro_clean)
-	col == "euro_d" && continue  # skip: euro_d has no missing values
-	mode_val = impute_strategy(df_euro_clean[!, col])
-    df_euro_clean[!, col] = coalesce.(df_euro_clean[!, col], mode_val)
+for col in categorical_attribute_names
+	val = categorical_impute_strategy(df_typed[!, col])
+	df_typed[!, col] = coalesce.(df_typed[!, col], val)
+end
+
+# ╔═╡ 9ea155da-c7a1-46be-afdb-7bbf1bee5020
+@bind numerical_impute_strategy Select([mode, mean, median])
+
+# ╔═╡ 5bce1728-42b6-4d11-8e67-bdcbb261f758
+for col in numerical_attribute_names
+	val = numerical_impute_strategy(df_typed[!, col])
+	df_typed[!, col] = coalesce.(df_typed[!, col], val)
 end
 
 # ╔═╡ 853494bf-dab0-4c17-8b00-62960b98cd28
@@ -571,7 +612,7 @@ We proceed to remove the columns having very skewed categorical distributions, w
 @bind frequency_threshold Slider(0:0.05:1, show_value=true, default=0.6)
 
 # ╔═╡ 9bd07589-0e70-401a-aabd-11772b32aa34
-df_freq_filter = filter_df(df_euro_clean, :frequency;
+df_freq_filter = filter_df(df_typed, :frequency;
 	frequency_threshold=frequency_threshold,
 	ignore_cols=["euro_d"])
 
@@ -580,124 +621,149 @@ size(df_freq_filter)
 
 # ╔═╡ cfc63ecc-56e9-4347-b9af-122b83a2f9a3
 md"""
-As a more refined strategy, let us compute the *informative entropy* ``H(X)`` along each column ``X = \{x_1, x_2, \ldots, x_n\}``.
+As a more refined strategy, let us compute the *entropy* ``H(X)`` along each column ``X = \{x_1, x_2, \ldots, x_n\}``.
 
 ```math 
 H(X) = - \sum_{i=1}^{n} p(x_i)\,\log_2 p(x_i)
 ```
+
+Entropy, in general, is a way to describe how much chaotic a system is from a physical point of view.
+
+In many disciplines, such as computer science, electronics, statistics and data science, we interpret entropy as a measure of how much informative a communication channel, a signal, or a distribution is.
+
+The concept is abstract at first, but try to think about this:
+what does it mean for a communication channel to be completely uninformative?
 """
 
-# ╔═╡ fb0f73e5-cc1e-4209-a479-3185017ec801
+# ╔═╡ 85a27e1d-4635-46c7-bd14-89a6e6f088f8
 md"""
-!!! info "Interpreting Entropy"
-	Entropy is a way to describe how much chaotic a system is.
+!!! warning "Exercise"
+	We want to compute the entropy of the following distribution ``X = \{a,a,a,b,b,b,b,b,c,c\}``
 
-	TODO explain this.
+	``H(X) = \frac{3}{10}log_2(\frac{3}{10}) + \frac{5}{10}log_2(\frac{5}{10}) + \frac{2}{10}log_2(\frac{2}{10})=``
+	``\quad = -0.52 - 0.5 - 0.46= -1.48``
 """
 
-# ╔═╡ 7d9670d1-24d9-43ba-b0c5-90dbcd526f99
-@bind entropy_threshold Slider(0:0.05:1, show_value=true, default=0.5)
+# ╔═╡ 8019cb0e-f560-4c80-a0cd-13061fe08d84
+begin
+    entropies = Dict(name => entropy(df_typed[:, name]) for name in names(df_typed))
+    sorted_entropies = sort(collect(entropies), by=x -> x[2])
+end
 
-# ╔═╡ 73673f42-49cc-442c-b621-2a68b237c870
-size(df_freq_filter)
+# ╔═╡ 2ea7a28e-3a74-4011-98f4-1c6a8cc639dd
+@bind top_k_print Slider(1:1:25, show_value=true, default=10)
 
-# ╔═╡ 569c8cb3-6a72-4c63-8455-1c09316b6aca
-md"""
-TODO: put here a little theoretical consideration about entropy
-"""
+# ╔═╡ 28e85f18-0f54-459d-989c-6a971f25b15f
+begin
+	println("Top informative columns by entropy:")
+    for (col, ent) in reverse(sorted_entropies)[1:top_k_print]
+        println("$col → $ent")
+    end
+end
 
-# ╔═╡ 614c9e71-fa66-4f9d-b881-31c9b36d1f2d
+# ╔═╡ 0207e0c5-9a8a-4daf-942c-edc54aac352f
+begin
+	println("Top uninformative columns by entropy:")
+    for (col, ent) in sorted_entropies[1:top_k_print]
+        println("$col → $ent")
+    end
+end
+
+# ╔═╡ 92a4c81a-8bd4-457a-86da-96be85c3fb89
+@bind entropy_threshold Slider(0.2:0.01:3, show_value=true, default=0.5)
+
+# ╔═╡ b0b97508-39a1-4f91-9975-188bbae4cb1b
+begin
+	p = plot(
+		last.(sorted_entropies),
+		xlabel="each i-th column (sorted by entropy)",
+		ylabel="entropy",
+		title="Entropy elbow plot",
+		label="entropy"
+	)
+	
+	hline!(
+		p, 
+		[entropy_threshold], 
+		color=:red, 
+		linewidth=2, 
+		# linestyle=:dot, 
+		label="cutoff"
+	)
+end
+
+# ╔═╡ 3dc492e3-533d-46c0-bb4f-65496e87961d
 df_ent_filter = filter_df(df_freq_filter, :entropy;
 	entropy_threshold=entropy_threshold,
 	ignore_cols=["euro_d"])
 
-# ╔═╡ 9abf6b58-c702-4c9f-bbf2-121a98a1054b
+# ╔═╡ da8e28da-c864-4eeb-b163-e3349be49567
 size(df_ent_filter)
 
-# ╔═╡ 4df2d89d-535c-44e0-9214-166488734bb1
-df_typed = filter_df(df_ent_filter, :cast;
-	cast_threshold=10,
-	ignore_cols=["euro_d"])
+# ╔═╡ 57a07a80-0aea-44c2-9d53-2f2f9d8c201b
+md"""
+We proceed to filter out specific instances being outliers for certain attributes.
 
-# ╔═╡ f003e809-f161-4a3d-a5ee-29274de832c3
-categorical_names = []
+For didactic purposes, let us fix the *age* attribute. Given the age of a specific instance, `x`, we are going to compute its z-score: 
 
-# ╔═╡ 744af9df-a615-43a7-8003-836a3bf482a1
-numeric_attributes = []
+```math 
+z = \frac{x - \mu}{\sigma}
+```
 
-# ╔═╡ d9f671c5-d194-43e2-8bb8-9a5eef7b8f1d
-for name in names(df_typed)
-	name == "euro_d" && continue
-	if df_typed[1,name] isa CategoricalValue
-		push!(categorical_names, name)
-		println("Categorical: $(name)")
-	else
-		push!(numeric_attributes, name)
-		println("Numeric: $(name)")
-	end
-end
+The score tells us how many standard deviations a value is from the mean age.
+"""
 
-# ╔═╡ 8019cb0e-f560-4c80-a0cd-13061fe08d84
-begin
-	# TODO: move in a utils file
-	function categorical_entropy(col)
-		counts = values(countmap(col))
-		probs = collect(counts) ./ sum(counts)
-		return entropy(probs)
-	end
-	
-	entropies = Dict(name => categorical_entropy(df_typed[:, name]) for name in categorical_names)
-	
-	sorted_entropies = sort(collect(entropies), by = x -> -x[2])
-	
-	println("Top informative columns by entropy:")
-	for (col, ent) in sorted_entropies[1:10]
-	    println("$col → $ent")
-	end
-end
-
-# ╔═╡ 18f675bf-9aff-4809-a3c7-f6d36c9527d9
-@bind name_of_numeric_attribute Select(numeric_attributes)
+# ╔═╡ 9d51ce42-752c-46f2-87bc-c064b952e770
+LocalResource("../images/standard_deviation_diagram.png")
 
 # ╔═╡ 94eadd14-2445-4ecc-a678-e8fc981674d8
+# begin
+# 	age_column = df_typed[:, name_of_numeric_attribute]
+# 	mu = mean(age_column)
+# 	sigma = std(age_column)
+# 	z = (age_column .- mu) ./ sigma
+# end
+
 begin
-	# TODO: substitute with zscore (StatsBase)
-	age_column = df_typed[:, name_of_numeric_attribute]
-	mu = mean(age_column)
-	sigma = std(age_column)
-	z = (age_column .- mu) ./ sigma
+	age_column = df_typed[:, "age"]
+	z = zscore(age_column)
 end
 
 # ╔═╡ d88e83ce-a1d5-4b6d-9f49-061a307dbee4
-@bind z_score Slider(0.01:0.05:4, show_value=true, default=1.65)
+@bind z_score_threshold Slider(0.01:0.05:4, show_value=true, default=1.65)
 
-# ╔═╡ d5851387-9ceb-41ca-9e7a-e4064080e8cb
-df_naout = filter_df(df_typed, :zscore;
-	z_threshold=z_score,
-	ignore_cols=["euro_d"])
-
-# ╔═╡ 8ce43c96-8d64-4faf-8185-79149c525c7f
+# ╔═╡ cca099f8-16f7-4960-bda0-ac86057be55b
 plot(
-	histogram(df_typed[:, name_of_numeric_attribute]; title="attribute distribution", legend=false),
-	histogram(df_naout[:, name_of_numeric_attribute]; title="attribute within $(z_score)σ", legend=false);
+	histogram(df_typed[:, "age"]; title="age distribution", legend=false),
+	histogram(df_naout[:, "age"]; title="age within $(z_score_threshold)σ", legend=false);
 	layout=(1, 2)
 )
+
+# ╔═╡ d5851387-9ceb-41ca-9e7a-e4064080e8cb
+df_no_outliers = filter_df(df_typed, :zscore;
+	z_threshold=z_score_threshold,
+	ignore_cols=["euro_d"])
 
 # ╔═╡ 9eee2f67-92b8-48c2-b502-73efa704562c
 md"""
 # Serialization
+
+Now, we want to save the final result from which we want to learn machine learning models.
+
+We use the verb *serialize* instead of *save*, because we decide to write a binary file which we can read from another Pluto.jl notebook, keeping a perfect snapshot of our clean data frame. 
 """
 
 # ╔═╡ b391021e-719e-412f-b13d-637fc5bcbe0c
 SERIALIZE_PATH = joinpath(DATASET_FOLDER, "share_clean.jls")
 
 # ╔═╡ dad65f84-7df0-4d40-a837-450d2402ddfc
+# this is a little trick to create a new file
 open(SERIALIZE_PATH, "w") do f
     println(f, "")
 end
 
 # ╔═╡ 20e435bd-fa83-4dfc-9c91-bae4a97478fd
-serialize(SERIALIZE_PATH, df_naout)
+serialize(SERIALIZE_PATH, df_no_outliers)
 
 # ╔═╡ Cell order:
 # ╟─49733da1-b29a-41cd-a1dd-3d748ca70f97
@@ -746,30 +812,36 @@ serialize(SERIALIZE_PATH, df_naout)
 # ╟─d7a4f151-e158-43ec-948d-3f0f98fe0729
 # ╠═f5fb9a1d-de7c-4a60-a3b3-6200386d44f5
 # ╠═73b63a56-8d36-4995-8157-1838ab882aaa
-# ╠═623a6bdf-7e23-4511-a974-a38515f8716a
+# ╟─623a6bdf-7e23-4511-a974-a38515f8716a
+# ╟─3a34594c-bfd1-4791-8cfb-4649b5d7f09e
+# ╠═26537045-ee8b-496f-82dc-628221894934
+# ╠═8d913135-5ee6-407a-aedb-c55b68b3b70d
+# ╠═4ec2c869-8b09-4b25-9bbe-101d632c096f
+# ╠═340c97fe-837f-4563-a70e-1f04f9d02818
 # ╠═fb5b262b-c8f3-44ed-8c3d-96fb20ad227a
 # ╠═14fc7835-c63f-406e-984f-d5279640bf8e
+# ╠═9ea155da-c7a1-46be-afdb-7bbf1bee5020
+# ╠═5bce1728-42b6-4d11-8e67-bdcbb261f758
 # ╟─853494bf-dab0-4c17-8b00-62960b98cd28
 # ╠═9bb12323-c3d8-4a40-a076-cf3c35fab32d
 # ╠═9bd07589-0e70-401a-aabd-11772b32aa34
 # ╠═a6b4bfef-7486-493d-b4e4-e6717d34c942
 # ╠═cfc63ecc-56e9-4347-b9af-122b83a2f9a3
-# ╠═fb0f73e5-cc1e-4209-a479-3185017ec801
-# ╠═7d9670d1-24d9-43ba-b0c5-90dbcd526f99
-# ╠═73673f42-49cc-442c-b621-2a68b237c870
-# ╠═569c8cb3-6a72-4c63-8455-1c09316b6aca
-# ╠═614c9e71-fa66-4f9d-b881-31c9b36d1f2d
-# ╠═9abf6b58-c702-4c9f-bbf2-121a98a1054b
-# ╠═4df2d89d-535c-44e0-9214-166488734bb1
-# ╠═f003e809-f161-4a3d-a5ee-29274de832c3
-# ╠═744af9df-a615-43a7-8003-836a3bf482a1
-# ╠═d9f671c5-d194-43e2-8bb8-9a5eef7b8f1d
+# ╟─85a27e1d-4635-46c7-bd14-89a6e6f088f8
 # ╠═8019cb0e-f560-4c80-a0cd-13061fe08d84
-# ╠═18f675bf-9aff-4809-a3c7-f6d36c9527d9
+# ╠═2ea7a28e-3a74-4011-98f4-1c6a8cc639dd
+# ╠═28e85f18-0f54-459d-989c-6a971f25b15f
+# ╠═0207e0c5-9a8a-4daf-942c-edc54aac352f
+# ╠═92a4c81a-8bd4-457a-86da-96be85c3fb89
+# ╠═b0b97508-39a1-4f91-9975-188bbae4cb1b
+# ╠═3dc492e3-533d-46c0-bb4f-65496e87961d
+# ╠═da8e28da-c864-4eeb-b163-e3349be49567
+# ╟─57a07a80-0aea-44c2-9d53-2f2f9d8c201b
+# ╠═9d51ce42-752c-46f2-87bc-c064b952e770
 # ╠═94eadd14-2445-4ecc-a678-e8fc981674d8
 # ╠═d88e83ce-a1d5-4b6d-9f49-061a307dbee4
+# ╠═cca099f8-16f7-4960-bda0-ac86057be55b
 # ╠═d5851387-9ceb-41ca-9e7a-e4064080e8cb
-# ╠═8ce43c96-8d64-4faf-8185-79149c525c7f
 # ╠═9eee2f67-92b8-48c2-b502-73efa704562c
 # ╠═b391021e-719e-412f-b13d-637fc5bcbe0c
 # ╠═dad65f84-7df0-4d40-a837-450d2402ddfc
