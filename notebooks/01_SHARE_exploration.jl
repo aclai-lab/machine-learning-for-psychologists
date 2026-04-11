@@ -116,7 +116,7 @@ attribute_names = Dict(
     "dn503_" => "ethnicity",
     "dn014_" => "marital_status",
     "iv009_" => "residence_rural_urban",
-    "hhsize" => "living_alone",
+    "hhsize" => "household_size",
 
 	# social contacts
     "sp002_" => "social_support_received",
@@ -711,7 +711,7 @@ serialize(SERIALIZE_PATH, df_naout)
 # ╟─d3a4de4f-10c8-4e70-9104-b47364b99179
 # ╠═e550be57-eab2-4064-b3fd-2b87c45cecbd
 # ╟─7db28b02-a364-4bd0-84fe-be7c2d87e2cc
-# ╟─c88ab2ca-0a1a-4065-b1bb-10858e45b599
+# ╠═c88ab2ca-0a1a-4065-b1bb-10858e45b599
 # ╟─276b5cc2-b96c-4ddb-83dc-4ffb71978982
 # ╠═a0e4c864-da20-4020-8f90-5f311ec1ba00
 # ╠═35c37143-19be-4504-a289-6404c794c617
