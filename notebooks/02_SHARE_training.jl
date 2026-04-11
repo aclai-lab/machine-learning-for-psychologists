@@ -21,19 +21,40 @@ begin
     import Pkg
     Pkg.activate(Base.current_project(@__DIR__))
 
+	# necessary to read and write the work done in the previous notebook
     using Serialization
+
+	# general utilities for data encodings, statistics and visualizations
     using DataFrames
-    using MLJ
-    using Plots
-    using Random
     using StatsBase
     using PlutoUI
-
-	using SoleModels
 	import PlutoUI: combine
+	using Plots
+
+	# the machine learning engines!
+    using MLJ
+	using SoleModels
+
+	# generics
+	using Random
+	INCLUDE_PATH = joinpath(@__DIR__, "..", "utils")
+	include(joinpath(INCLUDE_PATH, "adapters.jl"));
+
+	# just a flag to suppress some warnings
 	scitype_check_level=0
-	
 end
+
+# ╔═╡ 53c022c4-b0f3-42c0-94b0-7114bec855e7
+# code to use to guarantee reproducibility when leveraging randomness
+RNG_SEED = 1605
+
+# ╔═╡ d7df4cf0-e938-471a-8284-e741588cf830
+md"""
+# Data Loading
+
+In the previous notebook, we serialized the cleaned data.
+Here, we load the same exact data.
+"""
 
 # ╔═╡ a2000000-3353-11f1-90b2-21952756a80b
 begin
@@ -44,32 +65,36 @@ end
 # ╔═╡ a3000000-3353-11f1-90b2-21952756a80b
 data = deserialize(SERIALIZE_PATH)
 
-# ╔═╡ ab344996-dcc4-49ef-a30c-200761f7c4eb
-count(x-> ismissing(x), data[:,:euro_d])
+# ╔═╡ cfc1ddfb-3171-41df-a319-7e55b6ac79ad
+md"""
+# Data adaptation
+TODO: write about the fact that we are going to leverage MLJ and its scientific types system.
+"""
+
+# ╔═╡ f0753df6-d698-4649-b5fd-ac7dcb385ce8
+md"""
+!!! warning "Scientific Types"
+	TODO: write about scientific types, that are fundamental to bridge statistics into machine learning.
+"""
+
+# ╔═╡ ea285fa0-cd96-41e2-a8bb-356fd2606eb7
+y = coerce(string.(data[:, :euro_d]), Multiclass)
+
+# ╔═╡ 1295b232-f44e-415e-b69b-b6f20786da58
+X_raw = select(data, Not(:euro_d))
+
+# ╔═╡ 9581203e-8089-4d8a-b25a-d3806a499cda
+X_coerced = coerce_dataframe(X_raw)
 
 # ╔═╡ a5000000-3353-11f1-90b2-21952756a80b
-begin
-    # Rimuovi le righe con missing nel target PRIMA di tutto
-	y = coerce(string.(data[:, :euro_d]), Multiclass)
-    X_raw = select(data, Not(:euro_d))
+schema(X_coerced)
 
-    coerce_dict = Dict{Symbol, Type}()
-    for col in names(X_raw)
-        st = scitype(X_raw[:, col])
-        if st <: AbstractVector{<:Union{Missing, Multiclass}}
-            coerce_dict[Symbol(col)] = Union{Missing, OrderedFactor}
-        elseif st <: AbstractVector{<:Multiclass}
-            coerce_dict[Symbol(col)] = OrderedFactor
-        end
-    end
-
-    X_coerced = coerce(X_raw, coerce_dict...)
-    schema(X_coerced)
-end
+# ╔═╡ d4e2b317-92b9-4f59-b63d-91d14d3af828
+md"""
+TODO: describe what is happening here.
+"""
 
 # ╔═╡ a6000000-3353-11f1-90b2-21952756a80b
-# TODO COMMENTARE E METTERE WARNING PARLANDO DI FillImputer E SPIEGARE BENE IL FATTO CHE è MULTIVARIATO.
-
 begin
     imputer = FillImputer()
     imp_mach = machine(imputer, X_coerced)
@@ -78,37 +103,60 @@ begin
     schema(X)
 end
 
-# ╔═╡ e44a984c-97e7-48b4-9eae-658f141773c4
-begin
-    y 
-end
+# ╔═╡ d2d1e843-88ee-442b-a02f-1539d0ac514b
+unique(X_coerced[:, "residence_rural_urban"])
+
+# ╔═╡ 2107b65c-8af3-4914-a0c4-cbd2412bbab4
+unique(X[:, "residence_rural_urban"])
 
 # ╔═╡ a7000000-3353-11f1-90b2-21952756a80b
-begin
-    X_ninstances, X_nattributes = size(X)
-end
-
-# ╔═╡ a8000000-3353-11f1-90b2-21952756a80b
-md"""
-### Info su X
-- Istanze: **$(X_ninstances)**
-- Attributi: **$(X_nattributes)**
-"""
-
-# ╔═╡ a9000000-3353-11f1-90b2-21952756a80b
-md"""
-### Info su y
-Classi: **$(unique(y))**
-"""
+X_ninstances, X_nattributes = size(X)
 
 # ╔═╡ b0000000-3353-11f1-90b2-21952756a80b
-# todo attualmente e sbilanciato e non lo teniamo di conto 
 begin
     (X_train, X_test), (y_train, y_test) = partition(
         (X, y), 0.7;
-        rng=1605, shuffle=true,multi=true
+
+		rng=RNG_SEED, 
+
+		# sometimes, data is ordered via a criterion we do not want to assume
+		shuffle=true,
+
+		# we need this to keep Xs and ys glued pairwise
+		multi=true
     )
 end
+
+# ╔═╡ 6abe7cf4-231c-4f75-839f-6b80891d3088
+md"""
+!!! warning "Unbalanced classes"
+	TODO: explain why having unbalanced classes is dangerous.
+
+	TODO: mention the fact that we are going to fix this later, using cross validation with stratified sampling.
+
+	TODO: warn the student about how to read the bar plot below...
+"""
+
+# ╔═╡ c70c1204-60a1-4ecf-b0a1-8a60938686ff
+y_train_yes, y_train_no = values(countmap(y_train));
+
+# ╔═╡ d9bac238-70b3-43a0-95c5-99fb5ae96b92
+y_test_yes, y_test_no = values(countmap(y_test));
+
+# ╔═╡ 57d8be18-2370-4fbc-bc69-eb54898e9dff
+bar(["train", "test"], 
+	[[y_train_no, y_train_yes], [y_test_no, y_test_yes]],
+	title="Train set class distribution",
+	label=["no" "yes"])
+
+# ╔═╡ 6b94d7db-7f2f-4471-8999-b138b6b0c448
+md"""
+# Training (first approach)
+
+We proceed to leverage the training data to *induce a decision tree*.
+
+The driver engine is MLJ, but the learning logic comes from a famous package of the Julia community (DecisionTreeClassifier).
+"""
 
 # ╔═╡ b1000000-3353-11f1-90b2-21952756a80b
 begin
@@ -118,9 +166,6 @@ begin
         println("DecisionTreeClassifier already imported.")
     end
 end
-
-# ╔═╡ b2000000-3353-11f1-90b2-21952756a80b
-md"## Model Training"
 
 # ╔═╡ c1ea8a00-0772-4717-af4b-cf848a825a10
 possible_depths = collect(1:10)
@@ -298,18 +343,28 @@ md"""
 
 # ╔═╡ Cell order:
 # ╠═a1000000-3353-11f1-90b2-21952756a80b
+# ╠═53c022c4-b0f3-42c0-94b0-7114bec855e7
+# ╟─d7df4cf0-e938-471a-8284-e741588cf830
 # ╠═a2000000-3353-11f1-90b2-21952756a80b
 # ╠═a3000000-3353-11f1-90b2-21952756a80b
-# ╠═ab344996-dcc4-49ef-a30c-200761f7c4eb
+# ╟─cfc1ddfb-3171-41df-a319-7e55b6ac79ad
+# ╠═f0753df6-d698-4649-b5fd-ac7dcb385ce8
+# ╠═ea285fa0-cd96-41e2-a8bb-356fd2606eb7
+# ╠═1295b232-f44e-415e-b69b-b6f20786da58
+# ╠═9581203e-8089-4d8a-b25a-d3806a499cda
 # ╠═a5000000-3353-11f1-90b2-21952756a80b
+# ╠═d4e2b317-92b9-4f59-b63d-91d14d3af828
 # ╠═a6000000-3353-11f1-90b2-21952756a80b
-# ╠═e44a984c-97e7-48b4-9eae-658f141773c4
+# ╠═d2d1e843-88ee-442b-a02f-1539d0ac514b
+# ╠═2107b65c-8af3-4914-a0c4-cbd2412bbab4
 # ╠═a7000000-3353-11f1-90b2-21952756a80b
-# ╠═a8000000-3353-11f1-90b2-21952756a80b
-# ╟─a9000000-3353-11f1-90b2-21952756a80b
 # ╠═b0000000-3353-11f1-90b2-21952756a80b
+# ╠═6abe7cf4-231c-4f75-839f-6b80891d3088
+# ╠═c70c1204-60a1-4ecf-b0a1-8a60938686ff
+# ╠═d9bac238-70b3-43a0-95c5-99fb5ae96b92
+# ╠═57d8be18-2370-4fbc-bc69-eb54898e9dff
+# ╟─6b94d7db-7f2f-4471-8999-b138b6b0c448
 # ╠═b1000000-3353-11f1-90b2-21952756a80b
-# ╟─b2000000-3353-11f1-90b2-21952756a80b
 # ╠═c1ea8a00-0772-4717-af4b-cf848a825a10
 # ╠═6d24d012-d0ba-4cfa-80a3-2126833c7f80
 # ╠═b3000000-3353-11f1-90b2-21952756a80b
