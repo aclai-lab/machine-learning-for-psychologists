@@ -10,3 +10,16 @@ function entropy(col)
     return StatsBase.entropy(probs)
 end
 
+"""
+Coerce the types of a generic dataframe, in such a way that they are suitable
+to be trated by MLJ and Sole.jl.
+"""
+function coerce_dataframe(X::AbstractDataFrame)
+    coerce_dict = Dict{Symbol, Type}()
+
+    for col in names(X)
+		coerce_dict[Symbol(col)] = eltype(scitype(X[:, col]))
+    end
+
+    return coerce(X, coerce_dict...)
+end
