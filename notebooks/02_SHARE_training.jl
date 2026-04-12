@@ -391,6 +391,7 @@ md"""
 ----
 - SOLEMODELS
 - POSTHOC
+- wrap MLJ and DecisionTree code in utils/adapters.jl when it makes sense to do it
 """
 
 # ╔═╡ Cell order:
@@ -413,7 +414,7 @@ md"""
 # ╠═2107b65c-8af3-4914-a0c4-cbd2412bbab4
 # ╠═a7000000-3353-11f1-90b2-21952756a80b
 # ╠═b0000000-3353-11f1-90b2-21952756a80b
-# ╠═6abe7cf4-231c-4f75-839f-6b80891d3088
+# ╟─6abe7cf4-231c-4f75-839f-6b80891d3088
 # ╠═c70c1204-60a1-4ecf-b0a1-8a60938686ff
 # ╠═d9bac238-70b3-43a0-95c5-99fb5ae96b92
 # ╠═57d8be18-2370-4fbc-bc69-eb54898e9dff
