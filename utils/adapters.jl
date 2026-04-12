@@ -18,19 +18,7 @@ function coerce_dataframe(X::AbstractDataFrame)
     coerce_dict = Dict{Symbol, Type}()
 
     for col in names(X)
-        sc = eltype(scitype(X[:, col]))
-
-        # why do we want to do this?
-        # because DecisionTree.jl does not support MultiClass;
-        # we could one-hot encode the MultiClass columns, but many SHARE
-        # questions are worded in a way for which an ordering is induced.
-        if sc <: MultiClass
-            coerce_dict[col] = OrderedFactor
-        else
-            coerce_dict[col] = sc
-        end
-
-		# coerce_dict[Symbol(col)] = eltype(scitype(X[:, col]))
+		coerce_dict[Symbol(col)] = eltype(scitype(X[:, col]))
     end
 
     return coerce(X, coerce_dict...)
