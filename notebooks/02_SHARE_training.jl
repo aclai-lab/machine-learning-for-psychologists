@@ -33,12 +33,15 @@ begin
 
 	# the machine learning engines!
     using MLJ
+	using MLJBase
+	using MLJTransforms
 	using SoleModels
 
 	# generics
 	using Random
 	INCLUDE_PATH = joinpath(@__DIR__, "..", "utils")
 	include(joinpath(INCLUDE_PATH, "adapters.jl"));
+	include(joinpath(INCLUDE_PATH, "measures.jl"));
 
 	# just a flag to suppress some warnings
 	scitype_check_level=0;
@@ -106,7 +109,14 @@ md"""
 """
 
 # ╔═╡ ea285fa0-cd96-41e2-a8bb-356fd2606eb7
+# ╠═╡ disabled = true
+#=╠═╡
+
+  ╠═╡ =#
+
+# ╔═╡ d3fdbf72-79ee-4712-8469-4d29768b4559
 y = coerce(string.(data[:, :euro_d]), Multiclass)
+# y = categorical(data[:, "euro_d"], ordered=true, levels=["no", "yes"])
 
 # ╔═╡ 1295b232-f44e-415e-b69b-b6f20786da58
 X_raw = DataFrames.select(data, Not(:euro_d))
@@ -134,15 +144,30 @@ begin
     imputer = FillImputer()
     mach = machine(imputer, X_coerced)
     fit!(mach)
-    X = MLJ.transform(mach, X_coerced)
-    schema(X);
+    X_coerced_raw = MLJ.transform(mach, X_coerced)
+    schema(X_coerced_raw);
 end
 
-# ╔═╡ d2d1e843-88ee-442b-a02f-1539d0ac514b
-unique(X_coerced[:, "residence_rural_urban"])
+# ╔═╡ 66ec88be-2014-40a1-a221-e8fbed52c3b7
+md"""
+!!! warning "The danger of Multiclass"
+	TODO explain about one hot encoding
+"""
 
-# ╔═╡ 2107b65c-8af3-4914-a0c4-cbd2412bbab4
-unique(X[:, "residence_rural_urban"])
+# ╔═╡ 67a333d7-4aa7-45bd-ad05-957fc87102f2
+OneHotEncoder = @load OneHotEncoder pkg=MLJTransforms
+
+# ╔═╡ 51278f4e-d554-48f6-a63f-14f3e78fee17
+ohe_mach = machine(OneHotEncoder(), X_coerced_raw)
+
+# ╔═╡ cf3b8afb-f32d-42f1-aa7e-7dfc0ec0ef17
+ohe_mach_fitted = fit!(ohe_mach);
+
+# ╔═╡ 4ccc6d8a-a6c3-42c5-bdcd-e489bcdb6798
+X = MLJBase.transform(ohe_mach_fitted, X_coerced_raw);
+
+# ╔═╡ 565c7e32-c824-41e8-a8ea-4d1e4a638c86
+size(X)
 
 # ╔═╡ a7000000-3353-11f1-90b2-21952756a80b
 X_ninstances, X_nattributes = size(X)
@@ -243,12 +268,6 @@ end
 # ╔═╡ b4000000-3353-11f1-90b2-21952756a80b
 model = models[max_depth_value]
 
-# ╔═╡ 31be2aa2-05b2-4428-ae19-316c8737704e
-md"""
-# TODO: DecisionTree cannot work with Multiclass attributes
-Converting every Multiclass to a Continuous is brutal... maybe we can do one hot encoding.
-"""
-
 # ╔═╡ b5000000-3353-11f1-90b2-21952756a80b
 begin
     mach_dt = machine(model, X_train, y_train)
@@ -258,11 +277,23 @@ begin
     cm_dt = confusion_matrix(y_pred_dt, y_test)
 end
 
+# ╔═╡ 38110cbb-592d-474b-bb6a-671e26cb2298
+md"""
+!!! info "How to read the confusion matrix"
+	TODO: write about precision and recall.
+"""
+
 # ╔═╡ b6000000-3353-11f1-90b2-21952756a80b
 cm_dt
 
 # ╔═╡ b7000000-3353-11f1-90b2-21952756a80b
 md"**Accuracy Decision Tree (test set):** $(round(accuracy(cm_dt), digits=4))"
+
+# ╔═╡ edc4f8f8-12b9-45b2-bbbe-32736dc6fbd3
+md"**Precision Decision Tree (test set):** $(round(precision(cm_dt), digits=4))"
+
+# ╔═╡ 948beef6-c940-4852-9500-76fb521aa437
+md"**Recall Decision Tree (test set):** $(round(recall(cm_dt), digits=4))"
 
 # ╔═╡ b8000000-3353-11f1-90b2-21952756a80b
 begin
@@ -277,7 +308,11 @@ begin
 end
 
 # ╔═╡ b9000000-3353-11f1-90b2-21952756a80b
-md"## Hyperparameter Tuning"
+md"""
+# Hyperparameter Tuning
+
+TODO: explain about tuning models and grid search
+"""
 
 # ╔═╡ c0000000-3353-11f1-90b2-21952756a80b
  begin
@@ -307,49 +342,62 @@ report(mach_tuned).best_model
 # ╔═╡ c2000000-3353-11f1-90b2-21952756a80b
 md"**Accuracy Tuned DT (test set):** $(round(accuracy(cm_tuned), digits=4))"
 
+# ╔═╡ 5b76d562-5472-416b-b63c-1fef7c81cd5f
+md"**Precision Tuned DT (test set):** $(round(precision(cm_tuned), digits=4))"
+
+# ╔═╡ 58ee4d37-9fa9-4f09-9d37-15d9f69d5ac2
+md"**Recall Tuned DT (test set):** $(round(recall(cm_tuned), digits=4))"
+
+# ╔═╡ 009f7612-9336-4afb-9907-4d40934e2845
+precision(cm_tuned)
+
+# ╔═╡ 98213623-eaec-4928-bfea-c0f0c4f04f90
+md"""
+!!! tip "☀️ Model inspection with Sole ☀️"
+	Describe a typical path in the decision tree below.
+"""
+
 # ╔═╡ 5117a6c9-b090-4d85-9cbc-9500beb09f7e
-#a = SoleModels.solemodel(fitted_params(mach_dt).tree)
+SoleModels.solemodel(fitted_params(mach_dt).tree)
 
 # ╔═╡ c3000000-3353-11f1-90b2-21952756a80b
 md"## Random Forest"
 
 # ╔═╡ c4000000-3353-11f1-90b2-21952756a80b
-begin
-    try
-        RandomForestClassifier = @load RandomForestClassifier pkg=DecisionTree
-    catch
-        println("RandomForestClassifier già importato.")
-    end
-end
+RandomForestClassifier = @load RandomForestClassifier pkg=DecisionTree
+
+# ╔═╡ 9410b8b8-10f0-460b-b46c-a7715cee1fe2
+possible_tree_depths  = collect(1:10)
 
 # ╔═╡ b6bc4920-7538-4df9-8295-4730db58be77
-begin
-	possible_tree_depths  = collect(1:10)
-	possible_tree_numbers = collect(2:20)
-end
+possible_tree_numbers = collect(2:20)
 
 # ╔═╡ b03265a4-0776-41c9-846a-5e74b459814d
-function pollo(directions::Vector)
-	
+function set_hyperparameters(directions::Vector)
 	return combine() do Child
-		
 		inputs = [
-			md""" $(name): $(
-				Child(name, Slider(1:100 , show_value = true))
-			)"""
+			if name == "max_depth" || name == "n_trees"
+				md""" $(name): $(
+					Child(name, Slider(1:100 , show_value = true, default=10))
+				)"""
+			else
+				md""" $(name): $(
+					Child(name, Slider(1:10, show_value = true, default=3))
+				)"""
+			end
 			
 			for name in directions
 		]
 		
 		md"""
-		#### Wind speeds
+		#### Forest hyperparameters
 		$(inputs)
 		"""
 	end
 end
 
 # ╔═╡ 1d0cc054-5c38-46d5-9033-4872d265c0d8
-@bind trees_param pollo(["max_depth", "min_samples_leaf", "min_samples_split", "n_trees"]) 
+@bind trees_param set_hyperparameters(["max_depth", "min_samples_leaf", "min_samples_split", "n_trees"]) 
 
 # ╔═╡ c5000000-3353-11f1-90b2-21952756a80b
 begin
@@ -372,18 +420,44 @@ end
 cm_rf
 
 # ╔═╡ c7000000-3353-11f1-90b2-21952756a80b
-md"**Accuracy Random Forest (test set):** $(round(accuracy(cm_rf), digits=4))"
+md"**Accuracy Random Forest:** $(round(accuracy(cm_rf), digits=4))"
 
-# ╔═╡ c8000000-3353-11f1-90b2-21952756a80b
+# ╔═╡ ca74043d-78ae-47a1-a58a-a8d349313fda
+md"**Precision Random Forest:** $(round(precision(cm_rf), digits=4))"
+
+# ╔═╡ f147f0f9-5e64-4413-9142-c0ec6d081506
+md"**Recall Random Forest:** $(round(recall(cm_rf), digits=4))"
+
+# ╔═╡ bf81a25b-cbbe-4f61-8fe2-d558f13aeb5d
 md"""
-## Riepilogo accuratezze
-
-| Modello | Accuracy |
-|---------|----------|
-| Decision Tree (depth=$(max_depth_value)) | $(round(accuracy(cm_dt), digits=4)) |
-| Decision Tree Tuned | $(round(accuracy(cm_tuned), digits=4)) |
-| Random Forest | $(round(accuracy(cm_rf), digits=4)) |
+| Modello | Accuracy | Precision | Recall |
+|---------|----------|-----------|--------|
+| Decision Tree (depth=$(max_depth_value)) | $(round(accuracy(cm_dt), digits=4)) | $(round(precision(cm_dt), digits=4)) | $(round(recall(cm_dt), digits=4)) |
+| Decision Tree Tuned | $(round(accuracy(cm_tuned), digits=4)) | $(round(precision(cm_tuned), digits=4)) | $(round(recall(cm_tuned), digits=4)) |
+| Random Forest | $(round(accuracy(cm_rf), digits=4)) | $(round(precision(cm_rf), digits=4)) | $(round(recall(cm_rf), digits=4)) |
 """
+
+# ╔═╡ 6fa4955d-c170-4e43-8cf6-0158cc08f60a
+ begin
+     df_max_depth_range = range(model, :max_depth,          lower=2, upper=10)
+     df_min_samples_leaf_range = range(model, :min_samples_leaf,   lower=1, upper=5)
+     df_min_samples_split_range = range(model, :min_samples_split,  lower=2, upper=10)
+ 
+     tuned_forest = TunedModel(
+         model      = MLJDecisionTreeInterface.DecisionForest(),
+         resampling = StratifiedCV(nfolds=10, shuffle=true),
+         range      = [df_max_depth_range, df_min_samples_leaf_range, df_min_samples_split_range],
+         measure    = accuracy,
+         tuning     = RandomSearch()
+     )
+ 
+     df_mach_tuned = machine(tuned_forest, X, y)
+     fit!(df_mach_tuned, verbosity=0)
+ 
+     df_y_prob_tuned = MLJ.predict(df_mach_tuned, X_test)
+     df_y_pred_tuned = mode.(y_prob_tuned)
+     df_cm_tuned     = confusion_matrix(y_pred_tuned, y_test)
+ end
 
 # ╔═╡ 8d28f8b0-1165-4ed2-bd3e-a09741363e83
 md"""
@@ -404,14 +478,19 @@ md"""
 # ╟─cfc1ddfb-3171-41df-a319-7e55b6ac79ad
 # ╟─f0753df6-d698-4649-b5fd-ac7dcb385ce8
 # ╠═ea285fa0-cd96-41e2-a8bb-356fd2606eb7
+# ╠═d3fdbf72-79ee-4712-8469-4d29768b4559
 # ╠═1295b232-f44e-415e-b69b-b6f20786da58
 # ╠═9581203e-8089-4d8a-b25a-d3806a499cda
 # ╠═a5000000-3353-11f1-90b2-21952756a80b
 # ╠═9f0ae520-5f94-4e34-bb03-f8c68a61157a
 # ╟─d4e2b317-92b9-4f59-b63d-91d14d3af828
 # ╠═a6000000-3353-11f1-90b2-21952756a80b
-# ╠═d2d1e843-88ee-442b-a02f-1539d0ac514b
-# ╠═2107b65c-8af3-4914-a0c4-cbd2412bbab4
+# ╠═66ec88be-2014-40a1-a221-e8fbed52c3b7
+# ╠═67a333d7-4aa7-45bd-ad05-957fc87102f2
+# ╠═51278f4e-d554-48f6-a63f-14f3e78fee17
+# ╠═cf3b8afb-f32d-42f1-aa7e-7dfc0ec0ef17
+# ╠═4ccc6d8a-a6c3-42c5-bdcd-e489bcdb6798
+# ╠═565c7e32-c824-41e8-a8ea-4d1e4a638c86
 # ╠═a7000000-3353-11f1-90b2-21952756a80b
 # ╠═b0000000-3353-11f1-90b2-21952756a80b
 # ╟─6abe7cf4-231c-4f75-839f-6b80891d3088
@@ -427,23 +506,33 @@ md"""
 # ╠═df689893-a895-4b3e-85a2-5364274bf575
 # ╠═b3000000-3353-11f1-90b2-21952756a80b
 # ╠═b4000000-3353-11f1-90b2-21952756a80b
-# ╠═31be2aa2-05b2-4428-ae19-316c8737704e
 # ╠═b5000000-3353-11f1-90b2-21952756a80b
+# ╠═38110cbb-592d-474b-bb6a-671e26cb2298
 # ╠═b6000000-3353-11f1-90b2-21952756a80b
 # ╟─b7000000-3353-11f1-90b2-21952756a80b
+# ╟─edc4f8f8-12b9-45b2-bbbe-32736dc6fbd3
+# ╟─948beef6-c940-4852-9500-76fb521aa437
 # ╠═b8000000-3353-11f1-90b2-21952756a80b
-# ╟─b9000000-3353-11f1-90b2-21952756a80b
+# ╠═b9000000-3353-11f1-90b2-21952756a80b
 # ╠═c0000000-3353-11f1-90b2-21952756a80b
 # ╠═c1000000-3353-11f1-90b2-21952756a80b
-# ╠═c2000000-3353-11f1-90b2-21952756a80b
+# ╟─c2000000-3353-11f1-90b2-21952756a80b
+# ╠═5b76d562-5472-416b-b63c-1fef7c81cd5f
+# ╠═58ee4d37-9fa9-4f09-9d37-15d9f69d5ac2
+# ╠═009f7612-9336-4afb-9907-4d40934e2845
+# ╠═98213623-eaec-4928-bfea-c0f0c4f04f90
 # ╠═5117a6c9-b090-4d85-9cbc-9500beb09f7e
 # ╟─c3000000-3353-11f1-90b2-21952756a80b
 # ╠═c4000000-3353-11f1-90b2-21952756a80b
+# ╠═9410b8b8-10f0-460b-b46c-a7715cee1fe2
 # ╠═b6bc4920-7538-4df9-8295-4730db58be77
 # ╠═b03265a4-0776-41c9-846a-5e74b459814d
 # ╠═1d0cc054-5c38-46d5-9033-4872d265c0d8
 # ╠═c5000000-3353-11f1-90b2-21952756a80b
 # ╠═c6000000-3353-11f1-90b2-21952756a80b
-# ╟─c7000000-3353-11f1-90b2-21952756a80b
-# ╟─c8000000-3353-11f1-90b2-21952756a80b
+# ╠═c7000000-3353-11f1-90b2-21952756a80b
+# ╠═ca74043d-78ae-47a1-a58a-a8d349313fda
+# ╠═f147f0f9-5e64-4413-9142-c0ec6d081506
+# ╠═bf81a25b-cbbe-4f61-8fe2-d558f13aeb5d
+# ╠═6fa4955d-c170-4e43-8cf6-0158cc08f60a
 # ╠═8d28f8b0-1165-4ed2-bd3e-a09741363e83
