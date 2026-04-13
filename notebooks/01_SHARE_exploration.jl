@@ -708,13 +708,14 @@ md"""
 
 # ╔═╡ b4d57562-aab5-44ee-be52-3c106e0ce170
 md"""
-Knowing the entropy of two columns, X and Y, we can compute the *mutual information*:
+Knowing the entropy of two columns, X and Y, we can compute the *mutual information* (MI):
 
 ```math
 I(X, Y) = H(Y) - H(Y | X)
 ```
 
 This measures how much knowing X reduces uncertainty about Y. 
+In other words, MI is a measure of the amount of information that one random variable contains about another random variable.
 
 In our scenario, the mutual information gives as an important insight about how much an attribute is useful in predicting the class label.
 """
@@ -739,11 +740,20 @@ md"""
 	``I(X, Y) = 0.970 - 0.636 = 0.334``
 """
 
-# ╔═╡ 8019cb0e-f560-4c80-a0cd-13061fe08d84
-begin
-    entropies = Dict(name => entropy(df_freq_filter[:, name]) for name in names(df_freq_filter))
-    sorted_entropies = sort(collect(entropies), by=x -> x[2])
-end
+# ╔═╡ 240443a3-42f2-4baf-b46b-621b97d5cd51
+mi_dict = Dict(
+	name => mutual_information(
+		df_freq_filter[:, name], 
+		df_freq_filter[:, "euro_d"];
+	) 
+	for name in names(df_freq_filter)
+)
+
+# ╔═╡ 7e3de156-3690-4ec2-b138-093f239f4a32
+mi_dict_sorted = sort(
+	collect(mi_dict),
+	by=x -> x[2]
+)
 
 # ╔═╡ 2ea7a28e-3a74-4011-98f4-1c6a8cc639dd
 @bind top_k_print Slider(1:1:25, show_value=true, default=10)
@@ -751,7 +761,7 @@ end
 # ╔═╡ 28e85f18-0f54-459d-989c-6a971f25b15f
 begin
 	println("Top $(top_k_print) mutual information:")
-    for (col, ent) in reverse(sorted_entropies)[1:top_k_print]
+    for (col, ent) in reverse(mi_dict_sorted)[1:top_k_print]
         println("$col → $ent")
     end
 end
@@ -759,27 +769,29 @@ end
 # ╔═╡ 0207e0c5-9a8a-4daf-942c-edc54aac352f
 begin
 	println("Top $(top_k_print) mutual information:")
-    for (col, ent) in sorted_entropies[1:top_k_print]
+    for (col, ent) in mi_dict_sorted[1:top_k_print]
         println("$col → $ent")
     end
 end
 
 # ╔═╡ 92a4c81a-8bd4-457a-86da-96be85c3fb89
-@bind entropy_threshold Slider(0.2:0.01:3, show_value=true, default=1.0)
+@bind mi_threshold Slider(0.0:0.001:0.03, show_value=true, default=0.01)
 
 # ╔═╡ b0b97508-39a1-4f91-9975-188bbae4cb1b
 begin
 	p = plot(
-		last.(sorted_entropies),
-		xlabel="each i-th column (sorted by entropy)",
-		ylabel="entropy",
-		title="Entropy elbow plot",
-		label="entropy"
+		last.(mi_dict_sorted),
+		xlabel="i-th attribute with lower mutual information",
+		ylabel="mutual information",
+		title="Mutual information elbow plot",
+		label="m.i. with class",
+		ylims=(0, 0.1),
+		legend=:topleft
 	)
 	
 	hline!(
 		p, 
-		[entropy_threshold], 
+		[mi_threshold], 
 		color=:red, 
 		linewidth=2, 
 		# linestyle=:dot, 
@@ -788,9 +800,10 @@ begin
 end
 
 # ╔═╡ 3dc492e3-533d-46c0-bb4f-65496e87961d
-df_ent_filter = filter_df(df_freq_filter, :entropy;
-	entropy_threshold=entropy_threshold,
-	ignore_cols=["euro_d"])
+df_ent_filter = filter_df(df_freq_filter, :information;
+    information_dictionary=mi_dict,
+	information_threshold=mi_threshold,
+	ignore_cols=["euro_d"]);
 
 # ╔═╡ da8e28da-c864-4eeb-b163-e3349be49567
 size(df_ent_filter)
@@ -839,6 +852,9 @@ plot(
 	layout=(1, 2)
 )
 
+# ╔═╡ aca83632-41ae-4696-ba82-7bcbbc5c6571
+size(df_no_outliers)
+
 # ╔═╡ 9eee2f67-92b8-48c2-b502-73efa704562c
 md"""
 # Serialization
@@ -867,7 +883,7 @@ md"""
 """
 
 # ╔═╡ f59ae421-e01c-43f1-9e15-6805f96aa746
-filename = "share_clean_mc_$(max_missing_instances)_mr_$(max_missing_along_row)_ft_$(frequency_threshold)_et_$(entropy_threshold)_zs_$(z_score_threshold).jls"
+filename = "share_clean_mc_$(max_missing_instances)_mr_$(max_missing_along_row)_ft_$(frequency_threshold)_mit_$(mi_threshold)_zs_$(z_score_threshold).jls"
 
 # ╔═╡ b391021e-719e-412f-b13d-637fc5bcbe0c
 SERIALIZE_PATH = joinpath(DATASET_FOLDER, filename)
@@ -963,8 +979,9 @@ end
 # ╟─35aa1f50-a2db-42c5-a080-45ec0d76ee33
 # ╟─2380ce25-6af6-4ed3-b528-d4fd55ef4abb
 # ╟─b4d57562-aab5-44ee-be52-3c106e0ce170
-# ╠═85a27e1d-4635-46c7-bd14-89a6e6f088f8
-# ╠═8019cb0e-f560-4c80-a0cd-13061fe08d84
+# ╟─85a27e1d-4635-46c7-bd14-89a6e6f088f8
+# ╠═240443a3-42f2-4baf-b46b-621b97d5cd51
+# ╠═7e3de156-3690-4ec2-b138-093f239f4a32
 # ╠═2ea7a28e-3a74-4011-98f4-1c6a8cc639dd
 # ╠═28e85f18-0f54-459d-989c-6a971f25b15f
 # ╠═0207e0c5-9a8a-4daf-942c-edc54aac352f
@@ -978,6 +995,7 @@ end
 # ╠═d88e83ce-a1d5-4b6d-9f49-061a307dbee4
 # ╠═d5851387-9ceb-41ca-9e7a-e4064080e8cb
 # ╠═cca099f8-16f7-4960-bda0-ac86057be55b
+# ╠═aca83632-41ae-4696-ba82-7bcbbc5c6571
 # ╟─9eee2f67-92b8-48c2-b502-73efa704562c
 # ╟─12533c7b-ca7f-4960-b969-77ae3f0e9063
 # ╠═f59ae421-e01c-43f1-9e15-6805f96aa746
