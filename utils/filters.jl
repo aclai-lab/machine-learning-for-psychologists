@@ -25,7 +25,7 @@ function filter_df(df::AbstractDataFrame, ::Val{M}; kwargs...) where {M}
     throw(ArgumentError("""
         Unknown filter mode: $(repr(M)).
         Valid modes: :missing_cols, :missing_rows, :property_cols,
-        :property_rows, :frequency, :entropy, :zscore, :cast
+        :property_rows, :frequency, :information, :zscore, :cast
     """))
 end
 
@@ -84,12 +84,13 @@ function filter_df(df::AbstractDataFrame, ::Val{:frequency};
     return isempty(bad) ? copy(df) : select(df, Not(bad))
 end
 
-function filter_df(df::AbstractDataFrame, ::Val{:entropy};
-    entropy_threshold::Real=0.5,
+function filter_df(df::AbstractDataFrame, ::Val{:information};
+    information_dictionary=Dict{String,Float64},
+    information_threshold::Real=0.5,
     colnames::AbstractVector=String[],
     ignore_cols::AbstractVector=String[])
     cols = filter(c -> c ∉ ignore_cols, _resolve_cols(df, colnames))
-    bad = filter(c -> _col_entropy(df[!, c]) < entropy_threshold, cols)
+    bad = filter(c -> information_dictionary[c] < information_threshold, cols)
     return isempty(bad) ? copy(df) : select(df, Not(bad))
 end
 
