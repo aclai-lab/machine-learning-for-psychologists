@@ -335,7 +335,7 @@ attribute_names = Dict(
 
 # ╔═╡ 276b5cc2-b96c-4ddb-83dc-4ffb71978982
 md"""
-!!! warning
+!!! warning "Dropped variables"
 	The collection below, `dropped_variables`, is a collection of attributes that are not exploited in the work mentioned above. We decide to ignore them.
 """
 
@@ -347,6 +347,14 @@ df = select(df_raw, Not(dropped_variables))
 
 # ╔═╡ 6a09514b-b065-448e-bf78-420c0d6ce6a5
 CSV.write(CSV_PATH, df)
+
+# ╔═╡ 51f15ec3-d939-4416-9281-3b34b673fed6
+md"""
+!!! warning "Float64?"
+	Most of our attributes are of type "Float64?".
+
+	What does this mean?
+"""
 
 # ╔═╡ 35c37143-19be-4504-a289-6404c794c617
 rename!(df, Dict(Symbol(k) => Symbol(v) for (k, v) in attribute_names))
@@ -373,13 +381,28 @@ md"""
 We proceed to get rid of attributes and instances having too many missing values. 
 
 Using two sliders, one for each case, we are going to set a threshold for how many missing value to keep at most.
+
+This step can be considered naive, in certain scenario (see below); we propose and discuss it anyway for educative purposes. Later, we are going to drop attributes based on more refined considerations.
+"""
+
+# ╔═╡ fee060cb-c7b4-4956-a47b-8219bd9aa3b1
+md"""
+!!! warning "The trap of removing missing values"
+	The following steps are useful for clean the data but, depending on the domain of interest, could result in a very naive mistake!
+
+	Given a specific attribute, the value of a certain instance can be missing for three reasons:
+	- **MCAR** (Missing Completely At Random): missings are due to random events.
+	- **MAR** (Missing At Random): missings depends on other observed variables but not the missing data itself (e.g., women are more likely to report their weight than men);
+	- **MNAR** (Missing Not At Random): the probability of missingness depends on the missing values themselves (e.g., high-income earners refuse to disclose their salary and missingness is directly tied to salary amount).
+
+	Dropping attributes with many MAR and MNAR can bias results badly!
 """
 
 # ╔═╡ 8d047693-fc98-44da-8ba2-53b43c0ffb88
 md"""
 ##### Columns Filtering
 
-$(@bind perc_missing_col Slider(0:0.05:1, show_value=true, default=0.4))
+$(@bind perc_missing_col Slider(0:0.05:1, show_value=true, default=0.8))
 """
 
 
@@ -404,7 +427,7 @@ md"""
 md"""
 ##### Rows Filtering
 
-$(@bind perc_missing_row Slider(0:0.01:1, show_value=true, default=0.4))
+$(@bind perc_missing_row Slider(0:0.01:1, show_value=true, default=0.8))
 """
 
 
@@ -420,9 +443,23 @@ n_rows_df_no_missing, n_cols_df_no_missing = size(df_no_missing)
 # ╔═╡ 77ee75b1-5a7c-4497-91f9-433aeb7d0a2a
 md"""
 !!! success "Rows filtering report"
-	You filtered out the rows containing more than the $(round(perc_missing_row*100, digits=2))% of missing values (that is, $(convert(Int,max_missing_along_row)) columns).
+	You filtered out **$(n_rows_df_no_missing_columns - n_rows_df_no_missing)** rows, that is, those containing more than the **$(round(perc_missing_row*100, digits=2))%** of missing values (i.e., **$(convert(Int,max_missing_along_row)) columns** are missing).
 
-	Now, $(n_rows_df_no_missing) instances remains.
+	Now, **$(n_rows_df_no_missing)** instances remains.
+"""
+
+# ╔═╡ 5d02a4a5-7173-43ae-8422-1bf5e245529c
+md"""
+!!! info "Exercise"
+	Try to investigate the following attributes. Which one seems to be "informative"? Which are garbage, and why? Which columns are intuitively useless?
+
+	- residence_rural_urban
+	- low_income 
+	- number_of_children
+	- number_of_grandchildren
+	- political_community_org
+	- hearing
+	- ethnicity
 """
 
 # ╔═╡ 3094d269-cd3d-46b6-9f32-cb99e19f3cc9
@@ -566,11 +603,11 @@ df_typed = filter_df(df_euro_clean, :cast;
 	cast_threshold=10,
 	ignore_cols=["euro_d"])
 
-# ╔═╡ 8d913135-5ee6-407a-aedb-c55b68b3b70d
-categorical_attribute_names = []
-
 # ╔═╡ 4ec2c869-8b09-4b25-9bbe-101d632c096f
 numerical_attribute_names = []
+
+# ╔═╡ 8d913135-5ee6-407a-aedb-c55b68b3b70d
+categorical_attribute_names = []
 
 # ╔═╡ 340c97fe-837f-4563-a70e-1f04f9d02818
 for name in names(df_typed)
@@ -584,21 +621,33 @@ for name in names(df_typed)
 	end
 end
 
-# ╔═╡ fb5b262b-c8f3-44ed-8c3d-96fb20ad227a
-@bind categorical_impute_strategy Select([mode, median])
-
-# ╔═╡ 14fc7835-c63f-406e-984f-d5279640bf8e
-for col in categorical_attribute_names
-	val = categorical_impute_strategy(df_typed[!, col])
-	df_typed[!, col] = coalesce.(df_typed[!, col], val)
-end
-
 # ╔═╡ 9ea155da-c7a1-46be-afdb-7bbf1bee5020
 @bind numerical_impute_strategy Select([mode, mean, median])
 
 # ╔═╡ 5bce1728-42b6-4d11-8e67-bdcbb261f758
 for col in numerical_attribute_names
 	val = numerical_impute_strategy(df_typed[!, col])
+	df_typed[!, col] = coalesce.(df_typed[!, col], val)
+end
+
+# ╔═╡ 97f45a63-5148-439f-b4bf-10d371dc357a
+md"""
+!!! info "Exercise"
+	*In this case*, should we just keep the missing values or is it better to impute them using the mode?
+	If the latter were the case, why could we not exploit mean and median metrics?
+"""
+
+# ╔═╡ 583f660f-e955-4ef0-bf04-555b1e294b7e
+function just_return_missing(_)
+	return missing
+end
+
+# ╔═╡ fb5b262b-c8f3-44ed-8c3d-96fb20ad227a
+@bind categorical_impute_strategy Select([just_return_missing, mode])
+
+# ╔═╡ 14fc7835-c63f-406e-984f-d5279640bf8e
+for col in categorical_attribute_names
+	val = categorical_impute_strategy(df_typed[!, col])
 	df_typed[!, col] = coalesce.(df_typed[!, col], val)
 end
 
@@ -615,14 +664,20 @@ We proceed to remove the columns having very skewed categorical distributions, w
 # ╔═╡ 9bd07589-0e70-401a-aabd-11772b32aa34
 df_freq_filter = filter_df(df_typed, :frequency;
 	frequency_threshold=frequency_threshold,
-	ignore_cols=["euro_d"])
+	ignore_cols=["euro_d"]);
 
 # ╔═╡ a6b4bfef-7486-493d-b4e4-e6717d34c942
 size(df_freq_filter)
 
+# ╔═╡ 62744abc-80f2-49aa-9a49-f371a4427194
+md"""
+!!! success "OK"
+	The size went from **$(size(df_typed))** to **$(size(df_freq_filter))**.
+"""
+
 # ╔═╡ cfc63ecc-56e9-4347-b9af-122b83a2f9a3
 md"""
-As a more refined strategy, let us compute the *entropy* ``H(X)`` along each column ``X = \{x_1, x_2, \ldots, x_n\}``.
+As a more refined filtering strategy, let us compute the *entropy* ``H(X)`` along each column ``X = \{x_1, x_2, \ldots, x_n\}``.
 
 ```math 
 H(X) = - \sum_{i=1}^{n} p(x_i)\,\log_2 p(x_i)
@@ -631,18 +686,57 @@ H(X) = - \sum_{i=1}^{n} p(x_i)\,\log_2 p(x_i)
 Entropy, in general, is a way to describe how much chaotic a system is from a physical point of view.
 
 In many disciplines, such as computer science, electronics, statistics and data science, we interpret entropy as a measure of how much informative a communication channel, a signal, or a distribution is.
+"""
 
-The concept is abstract at first, but try to think about this:
-what does it mean for a communication channel to be completely uninformative?
+# ╔═╡ 35aa1f50-a2db-42c5-a080-45ec0d76ee33
+md"""
+!!! warning "Exercise"
+	We want to compute the entropy of the following distribution ``X = \{a,a,a,b,b,b,b,b,c,c\}``
+
+	``H(X) = -(\frac{3}{10}log_2(\frac{3}{10}) + \frac{5}{10}log_2(\frac{5}{10}) + \frac{2}{10}log_2(\frac{2}{10}))=``
+
+	``\quad = -(-0.52 - 0.5 - 0.46)= 1.48``
+"""
+
+# ╔═╡ 2380ce25-6af6-4ed3-b528-d4fd55ef4abb
+md"""
+!!! info "Exercise"
+	Tell if this sentence is correct or not.
+
+	*If we compute the entropy for an attribute, and it is relatively low, then this means that the attribute is not informative and can be discarded*.
+"""
+
+# ╔═╡ b4d57562-aab5-44ee-be52-3c106e0ce170
+md"""
+Knowing the entropy of two columns, X and Y, we can compute the *mutual information*:
+
+```math
+I(X, Y) = H(Y) - H(Y | X)
+```
+
+This measures how much knowing X reduces uncertainty about Y. 
+
+In our scenario, the mutual information gives as an important insight about how much an attribute is useful in predicting the class label.
 """
 
 # ╔═╡ 85a27e1d-4635-46c7-bd14-89a6e6f088f8
 md"""
 !!! warning "Exercise"
-	We want to compute the entropy of the following distribution ``X = \{a,a,a,b,b,b,b,b,c,c\}``
+	We want to compute the mutual information between ``X = \{a,a,a,b,b,b,b,b,c,c\}`` and ``Y = \{0, 0, 1, 1, 1, 1, 0, 1, 0, 0\}``.
 
-	``H(X) = \frac{3}{10}log_2(\frac{3}{10}) + \frac{5}{10}log_2(\frac{5}{10}) + \frac{2}{10}log_2(\frac{2}{10})=``
-	``\quad = -0.52 - 0.5 - 0.46= -1.48``
+	``H(Y) = -(\frac{4}{10}log_2(\frac{4}{10}) + \frac{6}{10}log_2(\frac{6}{10}))= 0.97``
+
+	``H(Y|X=a) = -(\frac{2}{3}log_2(\frac{2}{3}) + \frac{1}{3}log_2(\frac{1}{3}))= 0.91``
+
+	``H(Y|X=b) = -(\frac{1}{5}log_2(\frac{1}{5}) + \frac{4}{5}log_2(\frac{4}{5}))= 0.72``
+
+	``H(Y|X=c) = -(\frac{2}{2}log_2(\frac{2}{2}) = 0``
+
+	``H(Y|X) = P(X=a) * H(Y|X=a) + ... + P(X=c) * H(Y | X=c)``
+
+	``\quad = 0.3 * 0.91 + 0.5 * 0.722 + 0 = 0.636``
+
+	``I(X, Y) = 0.970 - 0.636 = 0.334``
 """
 
 # ╔═╡ 8019cb0e-f560-4c80-a0cd-13061fe08d84
@@ -656,7 +750,7 @@ end
 
 # ╔═╡ 28e85f18-0f54-459d-989c-6a971f25b15f
 begin
-	println("Top informative columns by entropy:")
+	println("Top $(top_k_print) mutual information:")
     for (col, ent) in reverse(sorted_entropies)[1:top_k_print]
         println("$col → $ent")
     end
@@ -664,7 +758,7 @@ end
 
 # ╔═╡ 0207e0c5-9a8a-4daf-942c-edc54aac352f
 begin
-	println("Top uninformative columns by entropy:")
+	println("Top $(top_k_print) mutual information:")
     for (col, ent) in sorted_entropies[1:top_k_print]
         println("$col → $ent")
     end
@@ -810,14 +904,16 @@ end
 # ╟─d3a4de4f-10c8-4e70-9104-b47364b99179
 # ╠═e550be57-eab2-4064-b3fd-2b87c45cecbd
 # ╟─7db28b02-a364-4bd0-84fe-be7c2d87e2cc
-# ╠═c88ab2ca-0a1a-4065-b1bb-10858e45b599
+# ╟─c88ab2ca-0a1a-4065-b1bb-10858e45b599
 # ╟─276b5cc2-b96c-4ddb-83dc-4ffb71978982
-# ╠═a0e4c864-da20-4020-8f90-5f311ec1ba00
+# ╟─a0e4c864-da20-4020-8f90-5f311ec1ba00
+# ╟─51f15ec3-d939-4416-9281-3b34b673fed6
 # ╠═35c37143-19be-4504-a289-6404c794c617
 # ╠═e6228654-1fd3-433d-8cc3-0ebda46e90af
 # ╠═b7dc3954-e7e2-4064-b96b-0f18ac20fd45
 # ╠═44130ea6-884e-45a7-a580-290b09609a49
 # ╟─43648c1f-7874-4c65-b4e5-8dce3bb8b4c8
+# ╟─fee060cb-c7b4-4956-a47b-8219bd9aa3b1
 # ╟─8d047693-fc98-44da-8ba2-53b43c0ffb88
 # ╠═be2a50c2-21c3-48a5-8246-28fd34cad8ed
 # ╠═a271df5b-07a9-4580-93f6-e4ae2cac527c
@@ -828,6 +924,7 @@ end
 # ╠═35e96199-c896-46a7-bc63-0853ba7bbd14
 # ╠═c85c719a-3c99-4c49-b056-ce59535a457f
 # ╟─77ee75b1-5a7c-4497-91f9-433aeb7d0a2a
+# ╟─5d02a4a5-7173-43ae-8422-1bf5e245529c
 # ╠═3094d269-cd3d-46b6-9f32-cb99e19f3cc9
 # ╠═d09c8f96-74fa-4e98-87b3-080f8d0aae02
 # ╟─147b3de2-5a64-4bfc-adc8-af8c9b5d25b8
@@ -848,19 +945,25 @@ end
 # ╟─623a6bdf-7e23-4511-a974-a38515f8716a
 # ╟─3a34594c-bfd1-4791-8cfb-4649b5d7f09e
 # ╠═26537045-ee8b-496f-82dc-628221894934
-# ╠═8d913135-5ee6-407a-aedb-c55b68b3b70d
 # ╠═4ec2c869-8b09-4b25-9bbe-101d632c096f
+# ╠═8d913135-5ee6-407a-aedb-c55b68b3b70d
 # ╠═340c97fe-837f-4563-a70e-1f04f9d02818
-# ╠═fb5b262b-c8f3-44ed-8c3d-96fb20ad227a
-# ╠═14fc7835-c63f-406e-984f-d5279640bf8e
 # ╠═9ea155da-c7a1-46be-afdb-7bbf1bee5020
 # ╠═5bce1728-42b6-4d11-8e67-bdcbb261f758
+# ╟─97f45a63-5148-439f-b4bf-10d371dc357a
+# ╠═583f660f-e955-4ef0-bf04-555b1e294b7e
+# ╠═fb5b262b-c8f3-44ed-8c3d-96fb20ad227a
+# ╠═14fc7835-c63f-406e-984f-d5279640bf8e
 # ╟─853494bf-dab0-4c17-8b00-62960b98cd28
 # ╠═9bb12323-c3d8-4a40-a076-cf3c35fab32d
 # ╠═9bd07589-0e70-401a-aabd-11772b32aa34
 # ╠═a6b4bfef-7486-493d-b4e4-e6717d34c942
-# ╟─cfc63ecc-56e9-4347-b9af-122b83a2f9a3
-# ╟─85a27e1d-4635-46c7-bd14-89a6e6f088f8
+# ╟─62744abc-80f2-49aa-9a49-f371a4427194
+# ╠═cfc63ecc-56e9-4347-b9af-122b83a2f9a3
+# ╟─35aa1f50-a2db-42c5-a080-45ec0d76ee33
+# ╟─2380ce25-6af6-4ed3-b528-d4fd55ef4abb
+# ╟─b4d57562-aab5-44ee-be52-3c106e0ce170
+# ╠═85a27e1d-4635-46c7-bd14-89a6e6f088f8
 # ╠═8019cb0e-f560-4c80-a0cd-13061fe08d84
 # ╠═2ea7a28e-3a74-4011-98f4-1c6a8cc639dd
 # ╠═28e85f18-0f54-459d-989c-6a971f25b15f
