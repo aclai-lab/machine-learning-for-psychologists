@@ -449,48 +449,64 @@ md"""
 """
 
 # ╔═╡ 6fa4955d-c170-4e43-8cf6-0158cc08f60a
- begin
-     df_max_depth_range = range(model, :max_depth,          lower=2, upper=10)
-     df_min_samples_leaf_range = range(model, :min_samples_leaf,   lower=1, upper=5)
-     df_min_samples_split_range = range(model, :min_samples_split,  lower=2, upper=10)
- 
-     tuned_forest = TunedModel(
-         model      = MLJDecisionTreeInterface.DecisionForest(),
-         resampling = StratifiedCV(nfolds=10, shuffle=true),
-         range      = [df_max_depth_range, df_min_samples_leaf_range, df_min_samples_split_range],
-         measure    = accuracy,
-         tuning     = RandomSearch()
-     )
- 
-     df_mach_tuned = machine(tuned_forest, X, y)
-     fit!(df_mach_tuned, verbosity=0)
- 
-     df_y_prob_tuned = MLJ.predict(df_mach_tuned, X_test)
-     df_y_pred_tuned = mode.(y_prob_tuned)
-     df_cm_tuned     = confusion_matrix(y_pred_tuned, y_test)
- end
+begin
+    df_max_depth_range       = range(model, :max_depth,         lower=2, upper=4)
+    df_min_samples_leaf_range  = range(model, :min_samples_leaf,  lower=1, upper=2)
+    df_min_samples_split_range = range(model, :min_samples_split, lower=2, upper=4)
+
+    tuned_forest = TunedModel(
+        model      = MLJDecisionTreeInterface.RandomForestClassifier(),
+        resampling = CV(nfolds=3),          # 3 fold, niente stratified
+        range      = [df_max_depth_range, df_min_samples_leaf_range, df_min_samples_split_range],
+        measure    = accuracy,
+        tuning     = RandomSearch(),
+        n          = 8                      # solo 8 combinazioni campionate
+    )
+
+    df_mach_tuned = machine(tuned_forest, X, y)
+    fit!(df_mach_tuned, verbosity=0)
+
+    df_y_prob_tuned = MLJ.predict(df_mach_tuned, X_test)
+    df_y_pred_tuned = mode.(df_y_prob_tuned)   # era mode.(y_prob_tuned), mancava il prefisso df_
+    df_cm_tuned     = confusion_matrix(df_y_pred_tuned, y_test)  # stesso bug qui
+end
 
 # ╔═╡ 524f77c3-ebe2-4e7d-bd00-538c3de83cd0
-soledt = SoleModels.solemodel(fitted_params(mach_dt).tree)
+begin
+	fndt = MLJ.report(mach_dt).features
+	cndt = sort(MLJ.report(mach_dt).classes_seen)
+	soledt = SoleModels.solemodel(fitted_params(mach_dt).tree;featurenames=fndt, classlabels = cndt)
+end
 
 # ╔═╡ d8b150a0-261a-47fc-8ad5-c071f57c2077
-soletuneddt = SoleModels.solemodel(fitted_params(mach_tuned).best_fitted_params.tree)
+begin
+    fntdt = MLJ.report(mach_tuned).best_report.features
+    cntdt = sort(MLJ.report(mach_tuned).best_report.classes_seen)
+    soletuneddt = SoleModels.solemodel(
+        fitted_params(mach_tuned).best_fitted_params.tree;
+        featurenames = fntdt,
+        classlabels = cntdt
+    )
+end
 
 # ╔═╡ 8692525e-a66d-4413-8722-80b9f1bf436a
-solerf = solemodel(fitted_params(mach_rf).forest)
-
-# ╔═╡ 09fe6f9f-0365-4f8f-8afe-d08410efa206
 begin
-	name_to_extractor = Dict(
-	    "InTrees"      => InTreesRuleExtractor(),
-	    "Lumen"        => LumenRuleExtractor(),
-	    "BATrees"      => BATreesRuleExtractor(),
-	    "RULECOSIPLUS" => RULECOSIPLUSRuleExtractor(),
-	    "REFNE"        => REFNERuleExtractor(),
-	    "TREPAN"       => TREPANRuleExtractor()
-	)
-	
-	@bind extractor Radio([InTreesRuleExtractor => "InTrees", LumenRuleExtractor => "Lumen",BATreesRuleExtractor => "BATrees",REFNERuleExtractor => "REFNE",TREPANRuleExtractor => "TREPAN"]; default=InTreesRuleExtractor)
+    fnrf = MLJ.report(mach_rf).features
+    cnrf = sort(MLJ.report(mach_dt).classes_seen)  # dal DT che già funziona
+    solerf = SoleModels.solemodel(
+        fitted_params(mach_rf).forest;
+        featurenames = fnrf,
+        classlabels = cnrf
+    )
+end
+
+# ╔═╡ 60dda6b7-7efd-4f90-b96f-a20cce9441bc
+begin
+	intrees_extractor =  InTreesRuleExtractor()
+	lumen_extractor = LumenRuleExtractor()
+	batrees_extractor=BATreesRuleExtractor()
+	refne_extractor=REFNERuleExtractor()
+	trepan_extractor=TREPANRuleExtractor()
 end
 
 # ╔═╡ cdaf88f6-d1a6-4a77-a9f6-c68eca79d364
@@ -500,10 +516,7 @@ TODO: with orca
 """
 
 # ╔═╡ 7ebaad1b-0f94-4649-8630-f5890bff2fed
-md"""
-# Rule extraction
-TODO: with lumen
-"""
+extracted_rules = RuleExtraction.extractrules(batrees_extractor, solerf)
 
 # ╔═╡ 69a04f86-9c42-49b1-92e3-02aaed3fd97b
 md"""
@@ -592,7 +605,7 @@ md"""
 # ╠═524f77c3-ebe2-4e7d-bd00-538c3de83cd0
 # ╠═d8b150a0-261a-47fc-8ad5-c071f57c2077
 # ╠═8692525e-a66d-4413-8722-80b9f1bf436a
-# ╠═09fe6f9f-0365-4f8f-8afe-d08410efa206
+# ╠═60dda6b7-7efd-4f90-b96f-a20cce9441bc
 # ╠═cdaf88f6-d1a6-4a77-a9f6-c68eca79d364
 # ╠═7ebaad1b-0f94-4649-8630-f5890bff2fed
 # ╠═69a04f86-9c42-49b1-92e3-02aaed3fd97b
