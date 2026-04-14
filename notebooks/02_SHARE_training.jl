@@ -74,11 +74,12 @@ SolePostHoc will leverage external programs for supporting advanced data compres
 """
 
 # ╔═╡ 8afd5b7b-d0d7-4dcb-8911-f0fe02bd07e4
-begin
-	fillartifacts()
-	abc_loader = ABCLoader()
-	mit_loader = MITESPRESSOLoader()
-end
+# TODO: this could be removed
+# begin
+# 	fillartifacts()
+# 	abc_loader = ABCLoader()
+# 	mit_loader = MITESPRESSOLoader()
+# end
 
 # ╔═╡ d7df4cf0-e938-471a-8284-e741588cf830
 md"""
@@ -213,13 +214,14 @@ begin
     (X_train, X_test), (y_train, y_test) = partition(
         (X, y), 0.7;
 
-		rng=RNG_SEED, 
-
 		# sometimes, data is ordered via a criterion we do not want to assume
 		shuffle=true,
 
 		# we need this to keep Xs and ys glued pairwise
-		multi=true
+		multi=true,
+
+		# for reproducibility
+		rng=RNG_SEED
     )
 end
 
@@ -278,35 +280,52 @@ begin
     DecisionTreeClassifier = @load DecisionTreeClassifier pkg=DecisionTree verbosity=0
 end
 
-# ╔═╡ d8b09a29-2f37-4ff5-af0f-b7c03258c8af
-# TODO: show that the DecisionTree can be used with X_train, but not with X_raw
-MLJ.models(matching(X_train, y_train))
+# ╔═╡ 99f3b672-b24e-4d09-a1bb-cc4b2f928347
+md"""
+The two commands below demonstrate that the specific implementation of decision tree coming from `DecisionTree.jl` is not compatible with `Multiclass` scientific type (whilst the one coming from `BetaML` could be fine by-design!).
+"""
 
-# ╔═╡ c1ea8a00-0772-4717-af4b-cf848a825a10
-possible_max_depths = collect(1:10)
+# ╔═╡ a1ee0585-0fb7-4019-ae32-fc2fbf9588b3
+MLJ.models(matching(X_raw, y))
 
-# ╔═╡ ebe914ce-c030-4bb6-bee7-f72713da1954
-models = DecisionTreeClassifier[]
-
-# ╔═╡ df689893-a895-4b3e-85a2-5364274bf575
-for d in possible_max_depths
-	model = MLJDecisionTreeInterface.DecisionTreeClassifier(
-    	max_depth = d,
-    	min_samples_leaf = 1,
-    	min_samples_split = 2,
-		min_purity_increase = 0.0,
-		n_subfeatures = 0.0,
-		post_prune = false,
-		merge_purity_threshold = 0.9
-	)
-	push!(models,model)
+# ╔═╡ c9999307-8118-4b39-b74f-8296685035b6
+for model in MLJ.models(matching(X_raw, y))
+	if model.name == "DecisionTreeClassifier"
+		println(model)
+	end
 end
 
-# ╔═╡ b3000000-3353-11f1-90b2-21952756a80b
-@bind max_depth_value Slider(possible_max_depths, default=5, show_value=true)
+# ╔═╡ d8b09a29-2f37-4ff5-af0f-b7c03258c8af
+MLJ.models(matching(X_train, y_train))
 
-# ╔═╡ b4000000-3353-11f1-90b2-21952756a80b
-model = models[max_depth_value]
+# ╔═╡ 3c57b20b-42c0-464e-be47-ce653dfff359
+for model in MLJ.models(matching(X_train, y_train))
+	if model.name == "DecisionTreeClassifier"
+		println(model)
+	end
+end
+
+# ╔═╡ 125b244f-762a-449a-ac71-daa428650f81
+md"""
+!!! info "Exercise"
+	Select the type `MLJDecisionTreeInterface.DecisionTreeClassifier` and click the "Live docs" in the bottom-right button.
+
+	We want to answer two questions:
+	1. how is it called the specific algorithm implemented by `DecisionTrees.jl` for inducing decision tree models?
+	2. which hyperparameters are available?
+"""
+
+# ╔═╡ df689893-a895-4b3e-85a2-5364274bf575
+model = MLJDecisionTreeInterface.DecisionTreeClassifier(
+	max_depth = 10,
+	min_samples_leaf = 1,
+	min_samples_split = 2,
+	min_purity_increase = 0.0,
+	n_subfeatures = 0.0,
+	post_prune = false,
+	merge_purity_threshold = 0.9,
+	rng = RNG_SEED
+)
 
 # ╔═╡ b5000000-3353-11f1-90b2-21952756a80b
 begin
@@ -317,10 +336,28 @@ begin
     cm_dt = confusion_matrix(y_pred_dt, y_test)
 end
 
-# ╔═╡ 38110cbb-592d-474b-bb6a-671e26cb2298
+# ╔═╡ 1f8b37ed-336b-4f6e-9d47-643bdf5295d7
 md"""
-!!! info "How to read the confusion matrix"
-	TODO: write about precision and recall.
+To assess the quality of the trained model, we leverage a *confusion matrix* (see below).
+
+In general, we are interested in three metrics: *accuracy*, *precision* and *recall* (or *sensitivity*, as indicated below).
+
+**Accuracy** tells us how often the model is right across all classes; it is about the overall proportion of correct predictions but **can be misleading when data is unbalanced**.
+
+**Precision** is the proportion of predicted positives that are actually correct; this indicates "how reliable" positive predictions are.
+
+**Recall** is the proportion of actual positives that are captured; if the recall is low, then just a few positives are captured.
+"""
+
+# ╔═╡ c8ac4328-8f16-4033-baec-2b7861c4010f
+LocalResource("../images/confusion_matrix.png")
+
+# ╔═╡ ac27ff8d-dacb-4cae-b7e3-cc70135feaa6
+md"""
+!!! info "Exercise"
+	What happens when the recall is low and the precision is high?
+
+	What happens when the converse holds?
 """
 
 # ╔═╡ b6000000-3353-11f1-90b2-21952756a80b
@@ -533,9 +570,9 @@ end
 begin
 	intrees_extractor =  InTreesRuleExtractor()
 	lumen_extractor = LumenRuleExtractor()
-	batrees_extractor=BATreesRuleExtractor()
-	refne_extractor=REFNERuleExtractor()
-	trepan_extractor=TREPANRuleExtractor()
+	batrees_extractor = BATreesRuleExtractor()
+	refne_extractor = REFNERuleExtractor()
+	trepan_extractor = TREPANRuleExtractor()
 end
 
 # ╔═╡ cdaf88f6-d1a6-4a77-a9f6-c68eca79d364
@@ -544,8 +581,11 @@ md"""
 TODO: with orca
 """
 
+# ╔═╡ 22ea69e1-3c84-47a8-af8c-34f763204b3c
+typeof(solerf)
+
 # ╔═╡ 7ebaad1b-0f94-4649-8630-f5890bff2fed
-extracted_rules = RuleExtraction.extractrules(batrees_extractor, solerf)
+extracted_rules = SolePostHoc.Lumen.lumen(solerf)
 
 # ╔═╡ 69a04f86-9c42-49b1-92e3-02aaed3fd97b
 md"""
@@ -598,14 +638,17 @@ md"""
 # ╟─64d0496d-51f0-48f1-9068-f34328d7a857
 # ╠═76edf51c-7ca6-49d1-85e8-bab1b77c04c2
 # ╠═b1000000-3353-11f1-90b2-21952756a80b
+# ╟─99f3b672-b24e-4d09-a1bb-cc4b2f928347
+# ╠═a1ee0585-0fb7-4019-ae32-fc2fbf9588b3
+# ╠═c9999307-8118-4b39-b74f-8296685035b6
 # ╠═d8b09a29-2f37-4ff5-af0f-b7c03258c8af
-# ╠═c1ea8a00-0772-4717-af4b-cf848a825a10
-# ╠═ebe914ce-c030-4bb6-bee7-f72713da1954
-# ╠═df689893-a895-4b3e-85a2-5364274bf575
-# ╠═b3000000-3353-11f1-90b2-21952756a80b
-# ╠═b4000000-3353-11f1-90b2-21952756a80b
+# ╠═3c57b20b-42c0-464e-be47-ce653dfff359
+# ╟─125b244f-762a-449a-ac71-daa428650f81
+# ╟─df689893-a895-4b3e-85a2-5364274bf575
 # ╠═b5000000-3353-11f1-90b2-21952756a80b
-# ╠═38110cbb-592d-474b-bb6a-671e26cb2298
+# ╟─1f8b37ed-336b-4f6e-9d47-643bdf5295d7
+# ╠═c8ac4328-8f16-4033-baec-2b7861c4010f
+# ╟─ac27ff8d-dacb-4cae-b7e3-cc70135feaa6
 # ╠═b6000000-3353-11f1-90b2-21952756a80b
 # ╟─b7000000-3353-11f1-90b2-21952756a80b
 # ╟─edc4f8f8-12b9-45b2-bbbe-32736dc6fbd3
@@ -638,6 +681,7 @@ md"""
 # ╠═8692525e-a66d-4413-8722-80b9f1bf436a
 # ╠═60dda6b7-7efd-4f90-b96f-a20cce9441bc
 # ╠═cdaf88f6-d1a6-4a77-a9f6-c68eca79d364
+# ╠═22ea69e1-3c84-47a8-af8c-34f763204b3c
 # ╠═7ebaad1b-0f94-4649-8630-f5890bff2fed
 # ╠═69a04f86-9c42-49b1-92e3-02aaed3fd97b
 # ╠═8d28f8b0-1165-4ed2-bd3e-a09741363e83
