@@ -35,7 +35,9 @@ begin
     using MLJ
 	using MLJBase
 	using MLJTransforms
+	using SoleData.Artifacts
 	using SoleModels
+	using SolePostHoc
 
 	# generics
 	using Random
@@ -63,6 +65,15 @@ It is very common to see "double-connected channels" between MLJ and other packa
 # ╔═╡ 53c022c4-b0f3-42c0-94b0-7114bec855e7
 # code to use to guarantee reproducibility when leveraging randomness
 RNG_SEED = 1605
+
+# ╔═╡ 8afd5b7b-d0d7-4dcb-8911-f0fe02bd07e4
+fillartifacts()
+
+# ╔═╡ c90804bd-7f5d-459d-84b9-2744fccdec52
+abcloader = ABCLoader()
+
+# ╔═╡ e648c343-aea6-49df-9b18-cb46d1f71754
+mitloader = MITESPRESSOLoader()
 
 # ╔═╡ d7df4cf0-e938-471a-8284-e741588cf830
 md"""
@@ -459,6 +470,46 @@ md"""
      df_cm_tuned     = confusion_matrix(y_pred_tuned, y_test)
  end
 
+# ╔═╡ 524f77c3-ebe2-4e7d-bd00-538c3de83cd0
+soledt = SoleModels.solemodel(fitted_params(mach_dt).tree)
+
+# ╔═╡ d8b150a0-261a-47fc-8ad5-c071f57c2077
+soletuneddt = SoleModels.solemodel(fitted_params(mach_tuned).best_fitted_params.tree)
+
+# ╔═╡ 8692525e-a66d-4413-8722-80b9f1bf436a
+solerf = solemodel(fitted_params(mach_rf).forest)
+
+# ╔═╡ 09fe6f9f-0365-4f8f-8afe-d08410efa206
+begin
+	name_to_extractor = Dict(
+	    "InTrees"      => InTreesRuleExtractor(),
+	    "Lumen"        => LumenRuleExtractor(),
+	    "BATrees"      => BATreesRuleExtractor(),
+	    "RULECOSIPLUS" => RULECOSIPLUSRuleExtractor(),
+	    "REFNE"        => REFNERuleExtractor(),
+	    "TREPAN"       => TREPANRuleExtractor()
+	)
+	
+	@bind extractor Radio([InTreesRuleExtractor => "InTrees", LumenRuleExtractor => "Lumen",BATreesRuleExtractor => "BATrees",REFNERuleExtractor => "REFNE",TREPANRuleExtractor => "TREPAN"]; default=InTreesRuleExtractor)
+end
+
+# ╔═╡ cdaf88f6-d1a6-4a77-a9f6-c68eca79d364
+md"""
+# Model compression
+TODO: with orca
+"""
+
+# ╔═╡ 7ebaad1b-0f94-4649-8630-f5890bff2fed
+md"""
+# Rule extraction
+TODO: with lumen
+"""
+
+# ╔═╡ 69a04f86-9c42-49b1-92e3-02aaed3fd97b
+md"""
+# Model explanation
+"""
+
 # ╔═╡ 8d28f8b0-1165-4ed2-bd3e-a09741363e83
 md"""
 # TODO
@@ -472,6 +523,9 @@ md"""
 # ╟─34bafc6f-ac2a-4cdb-b9c2-f766111251cb
 # ╠═a1000000-3353-11f1-90b2-21952756a80b
 # ╠═53c022c4-b0f3-42c0-94b0-7114bec855e7
+# ╠═8afd5b7b-d0d7-4dcb-8911-f0fe02bd07e4
+# ╠═c90804bd-7f5d-459d-84b9-2744fccdec52
+# ╠═e648c343-aea6-49df-9b18-cb46d1f71754
 # ╟─d7df4cf0-e938-471a-8284-e741588cf830
 # ╠═a2000000-3353-11f1-90b2-21952756a80b
 # ╠═a3000000-3353-11f1-90b2-21952756a80b
@@ -535,4 +589,11 @@ md"""
 # ╠═f147f0f9-5e64-4413-9142-c0ec6d081506
 # ╠═bf81a25b-cbbe-4f61-8fe2-d558f13aeb5d
 # ╠═6fa4955d-c170-4e43-8cf6-0158cc08f60a
+# ╠═524f77c3-ebe2-4e7d-bd00-538c3de83cd0
+# ╠═d8b150a0-261a-47fc-8ad5-c071f57c2077
+# ╠═8692525e-a66d-4413-8722-80b9f1bf436a
+# ╠═09fe6f9f-0365-4f8f-8afe-d08410efa206
+# ╠═cdaf88f6-d1a6-4a77-a9f6-c68eca79d364
+# ╠═7ebaad1b-0f94-4649-8630-f5890bff2fed
+# ╠═69a04f86-9c42-49b1-92e3-02aaed3fd97b
 # ╠═8d28f8b0-1165-4ed2-bd3e-a09741363e83
