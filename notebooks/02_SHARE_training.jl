@@ -372,12 +372,31 @@ md"**Precision Decision Tree (test set):** $(round(precision(cm_dt), digits=4))"
 # ╔═╡ 948beef6-c940-4852-9500-76fb521aa437
 md"**Recall Decision Tree (test set):** $(round(recall(cm_dt), digits=4))"
 
+# ╔═╡ d5458851-5414-484c-82cc-4e63b5ec06ef
+md"""
+!!! warning "Cross validation"
+	Beware: the performance of our trained model could depend on the partitioning of data in the training and test set.
+
+	To remove luck from the process we can rely on a more robust *training schema*, called *cross validation*.
+
+	Essentially, **cross validation** is about splitting the original data into multiple folds and repeatedly training and testing the model on different folds.
+
+	An important variant, in the context of this work, is **stratified cross validation**, in which each fold preserves the class distribution of the original dataset; this guarantees a stable evaluation of the model (there are )
+	Stratified cross validation  follows the same procedure but ensures that each fold preserves the class distribution of the original dataset.
+"""
+
+# ╔═╡ d3227330-0101-4253-838e-6f916fbbd18c
+LocalResource("../images/cross_validation.png")
+
+# ╔═╡ fd2a40f9-20f1-44a7-8231-9796dffd0922
+LocalResource("../images/stratified_cross_validation.png")
+
 # ╔═╡ b8000000-3353-11f1-90b2-21952756a80b
 begin
     mach_cv = machine(model, X, y)
     acc_cv = evaluate!(
         mach_cv;
-        resampling = StratifiedCV(nfolds=10, shuffle=true),
+        resampling = StratifiedCV(nfolds=10, shuffle=true, rng=RNG_SEED),
         measures   = [accuracy],
         verbosity  = 0
     )
@@ -653,6 +672,9 @@ md"""
 # ╟─b7000000-3353-11f1-90b2-21952756a80b
 # ╟─edc4f8f8-12b9-45b2-bbbe-32736dc6fbd3
 # ╟─948beef6-c940-4852-9500-76fb521aa437
+# ╟─d5458851-5414-484c-82cc-4e63b5ec06ef
+# ╠═d3227330-0101-4253-838e-6f916fbbd18c
+# ╠═fd2a40f9-20f1-44a7-8231-9796dffd0922
 # ╠═b8000000-3353-11f1-90b2-21952756a80b
 # ╠═b9000000-3353-11f1-90b2-21952756a80b
 # ╠═c0000000-3353-11f1-90b2-21952756a80b
