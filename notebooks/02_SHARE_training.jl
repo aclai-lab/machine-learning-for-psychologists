@@ -66,14 +66,19 @@ It is very common to see "double-connected channels" between MLJ and other packa
 # code to use to guarantee reproducibility when leveraging randomness
 RNG_SEED = 1605
 
+# ╔═╡ 9e1b6b33-65e7-4eb2-a26b-b622546a2d75
+md"""
+Artifacts are Julia "containers of data" that are not Julia packages.
+
+SolePostHoc will leverage external programs for supporting advanced data compression functionalities.
+"""
+
 # ╔═╡ 8afd5b7b-d0d7-4dcb-8911-f0fe02bd07e4
-fillartifacts()
-
-# ╔═╡ c90804bd-7f5d-459d-84b9-2744fccdec52
-abcloader = ABCLoader()
-
-# ╔═╡ e648c343-aea6-49df-9b18-cb46d1f71754
-mitloader = MITESPRESSOLoader()
+begin
+	fillartifacts()
+	abc_loader = ABCLoader()
+	mit_loader = MITESPRESSOLoader()
+end
 
 # ╔═╡ d7df4cf0-e938-471a-8284-e741588cf830
 md"""
@@ -119,27 +124,23 @@ md"""
 	For our use-case, the *Multiclass* and *Continuous* types are enough. For a list of all the available types, see [the Scientific Types documentation](https://juliaai.github.io/ScientificTypes.jl/dev/reference/#Reference).
 """
 
-# ╔═╡ ea285fa0-cd96-41e2-a8bb-356fd2606eb7
-# ╠═╡ disabled = true
-#=╠═╡
-
-  ╠═╡ =#
-
 # ╔═╡ d3fdbf72-79ee-4712-8469-4d29768b4559
 y = coerce(string.(data[:, :euro_d]), Multiclass)
 # y = categorical(data[:, "euro_d"], ordered=true, levels=["no", "yes"])
 
+# ╔═╡ 43815971-fda4-4b32-abd6-77ee7df1e1d6
+md"""
+It is better to separate the rest of the data, since they require more treatment.
+"""
+
 # ╔═╡ 1295b232-f44e-415e-b69b-b6f20786da58
 X_raw = DataFrames.select(data, Not(:euro_d))
 
-# ╔═╡ 9581203e-8089-4d8a-b25a-d3806a499cda
-X_coerced = coerce_dataframe(X_raw)
-
-# ╔═╡ a5000000-3353-11f1-90b2-21952756a80b
-schema(X_coerced)
-
 # ╔═╡ 9f0ae520-5f94-4e34-bb03-f8c68a61157a
-size(X_coerced)
+size(X_raw)
+
+# ╔═╡ 7d268051-0758-4c20-ae25-253a2a4627e8
+schema(X_raw)
 
 # ╔═╡ d4e2b317-92b9-4f59-b63d-91d14d3af828
 md"""
@@ -150,19 +151,43 @@ As we can see above, however, the Missing type is kept separated from Multiclass
 Since the Multiclass scientific type explicits that there is no ordering between the values of an attribute, we can safely convert missings to a numerical value.
 """
 
+# ╔═╡ 2ac0e4ca-7e77-47b8-b1b9-9e1ed0d1c426
+md"""
+!!! info "Exercise"
+	In your opinion, why missings are kept separated from the Multiclass specifier?
+"""
+
 # ╔═╡ a6000000-3353-11f1-90b2-21952756a80b
 begin
     imputer = FillImputer()
-    mach = machine(imputer, X_coerced)
+    mach = machine(imputer, X_raw)
     fit!(mach)
-    X_coerced_raw = MLJ.transform(mach, X_coerced)
+    X_coerced_raw = MLJ.transform(mach, X_raw)
     schema(X_coerced_raw);
 end
 
 # ╔═╡ 66ec88be-2014-40a1-a221-e8fbed52c3b7
 md"""
-!!! warning "The danger of Multiclass"
-	TODO explain about one hot encoding
+!!! tips "From Multiclass to One-hot encoding"
+	Multiclass labels are typically stored as categorical values, and the model must be able to interpret them correctly as distinct classes rather than arbitrary text or numbers.
+
+	**It is by no means certain that a model can naturally handle Multiclass**.
+
+	A safe, general solution is... **one-hot encoding**!
+
+	It is a way of representing each category as a separate binary feature, where only one feature is "active" (i.e., set to 1) for a given observation and all others are 0. 
+
+	With one-hot encoding...
+	- we avoid introducing a false notion of ordering between the values of an attribute (as in the case of leveraging Multiclass types);
+	- it is not mandatory for the trained model to be designed for handling categorical attributes.
+"""
+
+# ╔═╡ d0b073f2-2bba-433d-afc4-c5cc085ada62
+LocalResource("../images/onehot_encoding.png")
+
+# ╔═╡ cdcbdbae-6867-453f-bbae-c7490a2c3df2
+md"""
+In a few cells, we are going to play with a particular kind of machine learning model called *decision tree*; let us see if the implementation we are going to leverage supports the Multiclass scientific type by design.
 """
 
 # ╔═╡ 67a333d7-4aa7-45bd-ad05-957fc87102f2
@@ -252,6 +277,10 @@ LocalResource("../images/decision_tree.png")
 begin
     DecisionTreeClassifier = @load DecisionTreeClassifier pkg=DecisionTree verbosity=0
 end
+
+# ╔═╡ d8b09a29-2f37-4ff5-af0f-b7c03258c8af
+# TODO: show that the DecisionTree can be used with X_train, but not with X_raw
+MLJ.models(matching(X_train, y_train))
 
 # ╔═╡ c1ea8a00-0772-4717-af4b-cf848a825a10
 possible_max_depths = collect(1:10)
@@ -523,23 +552,24 @@ md"""
 # ╟─34bafc6f-ac2a-4cdb-b9c2-f766111251cb
 # ╠═a1000000-3353-11f1-90b2-21952756a80b
 # ╠═53c022c4-b0f3-42c0-94b0-7114bec855e7
+# ╠═9e1b6b33-65e7-4eb2-a26b-b622546a2d75
 # ╠═8afd5b7b-d0d7-4dcb-8911-f0fe02bd07e4
-# ╠═c90804bd-7f5d-459d-84b9-2744fccdec52
-# ╠═e648c343-aea6-49df-9b18-cb46d1f71754
 # ╟─d7df4cf0-e938-471a-8284-e741588cf830
 # ╠═a2000000-3353-11f1-90b2-21952756a80b
 # ╠═a3000000-3353-11f1-90b2-21952756a80b
 # ╟─cfc1ddfb-3171-41df-a319-7e55b6ac79ad
 # ╟─f0753df6-d698-4649-b5fd-ac7dcb385ce8
-# ╠═ea285fa0-cd96-41e2-a8bb-356fd2606eb7
 # ╠═d3fdbf72-79ee-4712-8469-4d29768b4559
+# ╟─43815971-fda4-4b32-abd6-77ee7df1e1d6
 # ╠═1295b232-f44e-415e-b69b-b6f20786da58
-# ╠═9581203e-8089-4d8a-b25a-d3806a499cda
-# ╠═a5000000-3353-11f1-90b2-21952756a80b
 # ╠═9f0ae520-5f94-4e34-bb03-f8c68a61157a
+# ╠═7d268051-0758-4c20-ae25-253a2a4627e8
 # ╟─d4e2b317-92b9-4f59-b63d-91d14d3af828
+# ╟─2ac0e4ca-7e77-47b8-b1b9-9e1ed0d1c426
 # ╠═a6000000-3353-11f1-90b2-21952756a80b
-# ╠═66ec88be-2014-40a1-a221-e8fbed52c3b7
+# ╟─66ec88be-2014-40a1-a221-e8fbed52c3b7
+# ╠═d0b073f2-2bba-433d-afc4-c5cc085ada62
+# ╟─cdcbdbae-6867-453f-bbae-c7490a2c3df2
 # ╠═67a333d7-4aa7-45bd-ad05-957fc87102f2
 # ╠═51278f4e-d554-48f6-a63f-14f3e78fee17
 # ╠═cf3b8afb-f32d-42f1-aa7e-7dfc0ec0ef17
@@ -555,6 +585,7 @@ md"""
 # ╟─64d0496d-51f0-48f1-9068-f34328d7a857
 # ╠═76edf51c-7ca6-49d1-85e8-bab1b77c04c2
 # ╠═b1000000-3353-11f1-90b2-21952756a80b
+# ╠═d8b09a29-2f37-4ff5-af0f-b7c03258c8af
 # ╠═c1ea8a00-0772-4717-af4b-cf848a825a10
 # ╠═ebe914ce-c030-4bb6-bee7-f72713da1954
 # ╠═df689893-a895-4b3e-85a2-5364274bf575
