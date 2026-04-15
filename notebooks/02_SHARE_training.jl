@@ -41,6 +41,7 @@ begin
 
 	# generics
 	using Random
+	using CategoricalArrays
 	INCLUDE_PATH = joinpath(@__DIR__, "..", "utils")
 	include(joinpath(INCLUDE_PATH, "adapters.jl"));
 	include(joinpath(INCLUDE_PATH, "measures.jl"));
@@ -48,9 +49,6 @@ begin
 	# just a flag to suppress some warnings
 	scitype_check_level=0;
 end
-
-# ╔═╡ 3fb5d980-1477-4a63-b691-03e2b8f9e5da
-using CategoricalArrays
 
 # ╔═╡ 34bafc6f-ac2a-4cdb-b9c2-f766111251cb
 md"""
@@ -75,13 +73,6 @@ Artifacts are Julia "containers of data" that are not Julia packages.
 
 SolePostHoc will leverage external programs for supporting advanced data compression functionalities.
 """
-
-# ╔═╡ 8afd5b7b-d0d7-4dcb-8911-f0fe02bd07e4
-#begin
-#	fillartifacts()
-#	abc_loader = ABCLoader()
-#	mit_loader = MITESPRESSOLoader()
-#end
 
 # ╔═╡ d7df4cf0-e938-471a-8284-e741588cf830
 md"""
@@ -413,38 +404,39 @@ To avoid arbitrary settings of hyperparameters, we can rely on a systematic proc
 """
 
 # ╔═╡ c0000000-3353-11f1-90b2-21952756a80b
- #begin
- #    max_depth_range         = range(model, :max_depth,          lower=2, upper=10)
- #    min_samples_leaf_range  = range(model, :min_samples_leaf,   lower=1, upper=5)
- #    min_samples_split_range = range(model, :min_samples_split,  lower=2, upper=10)
- #
- #    tuned_tree = TunedModel(
- #        model      = MLJDecisionTreeInterface.DecisionTreeClassifier(),
- #        resampling = StratifiedCV(nfolds=10, shuffle=true),
- #        range      = [max_depth_range, min_samples_leaf_range, #min_samples_split_range],
- #        measure    = accuracy,
- #        tuning     = RandomSearch()
- #    )
- #
- #    mach_tuned = machine(tuned_tree, X, y)
- #    fit!(mach_tuned, verbosity=0)
- #
- #    y_prob_tuned = MLJ.predict(mach_tuned, X_test)
- #    y_pred_tuned = mode.(y_prob_tuned)
- #    cm_tuned     = confusion_matrix(y_pred_tuned, y_test)
- #end
-
-# ╔═╡ c1000000-3353-11f1-90b2-21952756a80b
-#report(mach_tuned).best_model
+ begin
+     max_depth_range         = range(model, :max_depth,          lower=2, upper=10)
+     min_samples_leaf_range  = range(model, :min_samples_leaf,   lower=1, upper=5)
+     min_samples_split_range = range(model, :min_samples_split,  lower=2, upper=10)
+ 
+     tuned_tree = TunedModel(
+		model      = MLJDecisionTreeInterface.DecisionTreeClassifier(),
+        resampling = StratifiedCV(nfolds=10, shuffle=true),
+        range      = [
+			max_depth_range, 
+			min_samples_leaf_range, 
+			min_samples_split_range
+		 ],
+        measure    = accuracy,
+        tuning     = RandomSearch()
+     )
+ 
+     mach_tuned = machine(tuned_tree, X, y)
+     fit!(mach_tuned, verbosity=0)
+ 
+     y_prob_tuned = MLJ.predict(mach_tuned, X_test)
+     y_pred_tuned = mode.(y_prob_tuned)
+     cm_tuned     = confusion_matrix(y_pred_tuned, y_test)
+ end
 
 # ╔═╡ c2000000-3353-11f1-90b2-21952756a80b
-#md"**Accuracy Tuned DT (test set):** $(round(accuracy(cm_tuned), digits=4))"
+md"**Accuracy Tuned DT (test set):** $(round(accuracy(cm_tuned), digits=4))"
 
 # ╔═╡ 5b76d562-5472-416b-b63c-1fef7c81cd5f
-#md"**Precision Tuned DT (test set):** $(round(precision(cm_tuned), digits=4))"
+md"**Precision Tuned DT (test set):** $(round(precision(cm_tuned), digits=4))"
 
 # ╔═╡ 58ee4d37-9fa9-4f09-9d37-15d9f69d5ac2
-#md"**Recall Tuned DT (test set):** $(round(recall(cm_tuned), digits=4))"
+md"**Recall Tuned DT (test set):** $(round(recall(cm_tuned), digits=4))"
 
 # ╔═╡ 98213623-eaec-4928-bfea-c0f0c4f04f90
 md"""
@@ -593,6 +585,14 @@ begin
     )
 end
 
+# ╔═╡ 9319d70b-e1ae-493f-92bf-42745840411a
+md"""
+---
+# TODO: move in the next notebook
+
+The code from here onwards can be refined in another notebook.
+"""
+
 # ╔═╡ 60dda6b7-7efd-4f90-b96f-a20cce9441bc
 # Actually, this is solved in the next notebook
 begin
@@ -637,12 +637,21 @@ Proviamo alcuni dei nostri numerosi estrattori
 
 # ╔═╡ 7ebaad1b-0f94-4649-8630-f5890bff2fed
 begin
-	extracted_rules_w_lumen = RuleExtraction.extractrules(lumen_extractor,solerf;minimization_scheme=:abc)
+	extracted_rules_w_lumen = RuleExtraction.extractrules(
+		lumen_extractor,
+		sole_randomforest;
+		minimization_scheme=:abc
+	)
+	
 	extracted_rules_w_lumen
 end
 
 # ╔═╡ 8d28f8b0-1165-4ed2-bd3e-a09741363e83
-extracted_rules_w_t = RuleExtraction.extractrules(trepan_extractor, solerf, X_test_mat)
+extracted_rules_w_t = RuleExtraction.extractrules(
+	trepan_extractor, 
+	sole_randomforest, 
+	X_test_mat
+)
 
 # ╔═╡ 1395bfbb-b447-4d68-9171-35b154c4db6f
 begin
@@ -655,18 +664,23 @@ end
 # ╔═╡ 866f833d-dfc5-43a0-8dd5-a58679115f2b
     extracted_rules_w_intrees = RuleExtraction.extractrules(
         intrees_extractor,
-        solerf,
+        sole_randomforest,
         DataFrame(X_test),
         y_test_vec
     )
 
+# ╔═╡ 8afd5b7b-d0d7-4dcb-8911-f0fe02bd07e4
+#begin
+#	fillartifacts()
+#	abc_loader = ABCLoader()
+#	mit_loader = MITESPRESSOLoader()
+#end
+
 # ╔═╡ Cell order:
-# ╠═3fb5d980-1477-4a63-b691-03e2b8f9e5da
 # ╟─34bafc6f-ac2a-4cdb-b9c2-f766111251cb
 # ╟─a1000000-3353-11f1-90b2-21952756a80b
 # ╠═53c022c4-b0f3-42c0-94b0-7114bec855e7
 # ╠═9e1b6b33-65e7-4eb2-a26b-b622546a2d75
-# ╠═59f003ab-ebab-4fd3-9e9f-2bee9f07edf7
 # ╟─d7df4cf0-e938-471a-8284-e741588cf830
 # ╠═a2000000-3353-11f1-90b2-21952756a80b
 # ╠═a3000000-3353-11f1-90b2-21952756a80b
@@ -718,8 +732,7 @@ end
 # ╠═fd2a40f9-20f1-44a7-8231-9796dffd0922
 # ╠═b8000000-3353-11f1-90b2-21952756a80b
 # ╟─b9000000-3353-11f1-90b2-21952756a80b
-# ╟─c0000000-3353-11f1-90b2-21952756a80b
-# ╠═c1000000-3353-11f1-90b2-21952756a80b
+# ╠═c0000000-3353-11f1-90b2-21952756a80b
 # ╟─c2000000-3353-11f1-90b2-21952756a80b
 # ╟─5b76d562-5472-416b-b63c-1fef7c81cd5f
 # ╟─58ee4d37-9fa9-4f09-9d37-15d9f69d5ac2
@@ -733,7 +746,6 @@ end
 # ╠═b03265a4-0776-41c9-846a-5e74b459814d
 # ╠═1d0cc054-5c38-46d5-9033-4872d265c0d8
 # ╠═c5000000-3353-11f1-90b2-21952756a80b
-# ╠═c6000000-3353-11f1-90b2-21952756a80b
 # ╟─c7000000-3353-11f1-90b2-21952756a80b
 # ╟─ca74043d-78ae-47a1-a58a-a8d349313fda
 # ╟─f147f0f9-5e64-4413-9142-c0ec6d081506
@@ -742,6 +754,7 @@ end
 # ╠═524f77c3-ebe2-4e7d-bd00-538c3de83cd0
 # ╠═d8b150a0-261a-47fc-8ad5-c071f57c2077
 # ╠═8692525e-a66d-4413-8722-80b9f1bf436a
+# ╟─9319d70b-e1ae-493f-92bf-42745840411a
 # ╠═60dda6b7-7efd-4f90-b96f-a20cce9441bc
 # ╠═cdaf88f6-d1a6-4a77-a9f6-c68eca79d364
 # ╠═69a04f86-9c42-49b1-92e3-02aaed3fd97b
@@ -752,3 +765,4 @@ end
 # ╠═8d28f8b0-1165-4ed2-bd3e-a09741363e83
 # ╠═1395bfbb-b447-4d68-9171-35b154c4db6f
 # ╠═866f833d-dfc5-43a0-8dd5-a58679115f2b
+# ╠═8afd5b7b-d0d7-4dcb-8911-f0fe02bd07e4
