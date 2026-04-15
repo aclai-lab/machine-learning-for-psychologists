@@ -35,7 +35,7 @@ begin
     using MLJ
 	using MLJBase
 	using MLJTransforms
-	using SoleData.Artifacts
+	#using SoleData.Artifacts
 	using SoleModels
 	using SolePostHoc
 
@@ -48,6 +48,9 @@ begin
 	# just a flag to suppress some warnings
 	scitype_check_level=0;
 end
+
+# ╔═╡ 3fb5d980-1477-4a63-b691-03e2b8f9e5da
+using CategoricalArrays
 
 # ╔═╡ 34bafc6f-ac2a-4cdb-b9c2-f766111251cb
 md"""
@@ -74,11 +77,11 @@ SolePostHoc will leverage external programs for supporting advanced data compres
 """
 
 # ╔═╡ 8afd5b7b-d0d7-4dcb-8911-f0fe02bd07e4
-begin
-	fillartifacts()
-	abc_loader = ABCLoader()
-	mit_loader = MITESPRESSOLoader()
-end
+#begin
+#	fillartifacts()
+#	abc_loader = ABCLoader()
+#	mit_loader = MITESPRESSOLoader()
+#end
 
 # ╔═╡ d7df4cf0-e938-471a-8284-e741588cf830
 md"""
@@ -355,41 +358,41 @@ TODO: explain about tuning models and grid search
 """
 
 # ╔═╡ c0000000-3353-11f1-90b2-21952756a80b
- begin
-     max_depth_range         = range(model, :max_depth,          lower=2, upper=10)
-     min_samples_leaf_range  = range(model, :min_samples_leaf,   lower=1, upper=5)
-     min_samples_split_range = range(model, :min_samples_split,  lower=2, upper=10)
- 
-     tuned_tree = TunedModel(
-         model      = MLJDecisionTreeInterface.DecisionTreeClassifier(),
-         resampling = StratifiedCV(nfolds=10, shuffle=true),
-         range      = [max_depth_range, min_samples_leaf_range, min_samples_split_range],
-         measure    = accuracy,
-         tuning     = RandomSearch()
-     )
- 
-     mach_tuned = machine(tuned_tree, X, y)
-     fit!(mach_tuned, verbosity=0)
- 
-     y_prob_tuned = MLJ.predict(mach_tuned, X_test)
-     y_pred_tuned = mode.(y_prob_tuned)
-     cm_tuned     = confusion_matrix(y_pred_tuned, y_test)
- end
+ #begin
+ #    max_depth_range         = range(model, :max_depth,          lower=2, upper=10)
+ #    min_samples_leaf_range  = range(model, :min_samples_leaf,   lower=1, upper=5)
+ #    min_samples_split_range = range(model, :min_samples_split,  lower=2, upper=10)
+ #
+ #    tuned_tree = TunedModel(
+ #        model      = MLJDecisionTreeInterface.DecisionTreeClassifier(),
+ #        resampling = StratifiedCV(nfolds=10, shuffle=true),
+ #        range      = [max_depth_range, min_samples_leaf_range, #min_samples_split_range],
+ #        measure    = accuracy,
+ #        tuning     = RandomSearch()
+ #    )
+ #
+ #    mach_tuned = machine(tuned_tree, X, y)
+ #    fit!(mach_tuned, verbosity=0)
+ #
+ #    y_prob_tuned = MLJ.predict(mach_tuned, X_test)
+ #    y_pred_tuned = mode.(y_prob_tuned)
+ #    cm_tuned     = confusion_matrix(y_pred_tuned, y_test)
+ #end
 
 # ╔═╡ c1000000-3353-11f1-90b2-21952756a80b
-report(mach_tuned).best_model
+#report(mach_tuned).best_model
 
 # ╔═╡ c2000000-3353-11f1-90b2-21952756a80b
-md"**Accuracy Tuned DT (test set):** $(round(accuracy(cm_tuned), digits=4))"
+#md"**Accuracy Tuned DT (test set):** $(round(accuracy(cm_tuned), digits=4))"
 
 # ╔═╡ 5b76d562-5472-416b-b63c-1fef7c81cd5f
-md"**Precision Tuned DT (test set):** $(round(precision(cm_tuned), digits=4))"
+#md"**Precision Tuned DT (test set):** $(round(precision(cm_tuned), digits=4))"
 
 # ╔═╡ 58ee4d37-9fa9-4f09-9d37-15d9f69d5ac2
-md"**Recall Tuned DT (test set):** $(round(recall(cm_tuned), digits=4))"
+#md"**Recall Tuned DT (test set):** $(round(recall(cm_tuned), digits=4))"
 
 # ╔═╡ 009f7612-9336-4afb-9907-4d40934e2845
-precision(cm_tuned)
+#precision(cm_tuned)
 
 # ╔═╡ 98213623-eaec-4928-bfea-c0f0c4f04f90
 md"""
@@ -418,7 +421,7 @@ function set_hyperparameters(directions::Vector)
 		inputs = [
 			if name == "max_depth" || name == "n_trees"
 				md""" $(name): $(
-					Child(name, Slider(1:100 , show_value = true, default=10))
+					Child(name, Slider(1:20 , show_value = true, default=10))
 				)"""
 			else
 				md""" $(name): $(
@@ -442,10 +445,10 @@ end
 # ╔═╡ c5000000-3353-11f1-90b2-21952756a80b
 begin
     forest = MLJDecisionTreeInterface.RandomForestClassifier(
-        max_depth         = trees_param.max_depth,
+        max_depth         = 3,
         min_samples_leaf  = trees_param.min_samples_leaf,
         min_samples_split = trees_param.min_samples_split,
-        n_trees           = trees_param.n_trees
+        n_trees           = 3
     )
 
     mach_rf = machine(forest, X_train, y_train)
@@ -455,9 +458,6 @@ begin
     y_pred_rf = mode.(y_prob_rf)
     cm_rf     = confusion_matrix(y_pred_rf, y_test)
 end
-
-# ╔═╡ c6000000-3353-11f1-90b2-21952756a80b
-cm_rf
 
 # ╔═╡ c7000000-3353-11f1-90b2-21952756a80b
 md"**Accuracy Random Forest:** $(round(accuracy(cm_rf), digits=4))"
@@ -473,32 +473,31 @@ md"""
 | Modello | Accuracy | Precision | Recall |
 |---------|----------|-----------|--------|
 | Decision Tree (depth=$(max_depth_value)) | $(round(accuracy(cm_dt), digits=4)) | $(round(precision(cm_dt), digits=4)) | $(round(recall(cm_dt), digits=4)) |
-| Decision Tree Tuned | $(round(accuracy(cm_tuned), digits=4)) | $(round(precision(cm_tuned), digits=4)) | $(round(recall(cm_tuned), digits=4)) |
-| Random Forest | $(round(accuracy(cm_rf), digits=4)) | $(round(precision(cm_rf), digits=4)) | $(round(recall(cm_rf), digits=4)) |
+ Random Forest | $(round(accuracy(cm_rf), digits=4)) | $(round(precision(cm_rf), digits=4)) | $(round(recall(cm_rf), digits=4)) |
 """
 
 # ╔═╡ 6fa4955d-c170-4e43-8cf6-0158cc08f60a
-begin
-    df_max_depth_range       = range(model, :max_depth,         lower=2, upper=4)
-    df_min_samples_leaf_range  = range(model, :min_samples_leaf,  lower=1, upper=2)
-    df_min_samples_split_range = range(model, :min_samples_split, lower=2, upper=4)
-
-    tuned_forest = TunedModel(
-        model      = MLJDecisionTreeInterface.RandomForestClassifier(),
-        resampling = CV(nfolds=3),          # 3 fold, niente stratified
-        range      = [df_max_depth_range, df_min_samples_leaf_range, df_min_samples_split_range],
-        measure    = accuracy,
-        tuning     = RandomSearch(),
-        n          = 8                      # solo 8 combinazioni campionate
-    )
-
-    df_mach_tuned = machine(tuned_forest, X, y)
-    fit!(df_mach_tuned, verbosity=0)
-
-    df_y_prob_tuned = MLJ.predict(df_mach_tuned, X_test)
-    df_y_pred_tuned = mode.(df_y_prob_tuned)   # era mode.(y_prob_tuned), mancava il prefisso df_
-    df_cm_tuned     = confusion_matrix(df_y_pred_tuned, y_test)  # stesso bug qui
-end
+#begin
+#    df_max_depth_range       = range(model, :max_depth,         lower=2, upper=4)
+#    df_min_samples_leaf_range  = range(model, :min_samples_leaf,  lower=1, upper=2)
+#    df_min_samples_split_range = range(model, :min_samples_split, lower=2, upper=4)
+#
+#    tuned_forest = TunedModel(
+#        model      = MLJDecisionTreeInterface.RandomForestClassifier(),
+#        resampling = CV(nfolds=3),          # 3 fold, niente stratified
+#        range      = [df_max_depth_range, df_min_samples_leaf_range, #df_min_samples_split_range],
+#        measure    = accuracy,
+#        tuning     = RandomSearch(),
+#        n          = 8                      # solo 8 combinazioni campionate
+#    )
+#
+#    df_mach_tuned = machine(tuned_forest, X, y)
+#    fit!(df_mach_tuned, verbosity=0)
+#
+#    df_y_prob_tuned = MLJ.predict(df_mach_tuned, X_test)
+#    df_y_pred_tuned = mode.(df_y_prob_tuned)   # era mode.(y_prob_tuned), mancava il #prefisso df_
+#    df_cm_tuned     = confusion_matrix(df_y_pred_tuned, y_test)  # stesso bug qui
+#end
 
 # ╔═╡ 524f77c3-ebe2-4e7d-bd00-538c3de83cd0
 begin
@@ -508,15 +507,15 @@ begin
 end
 
 # ╔═╡ d8b150a0-261a-47fc-8ad5-c071f57c2077
-begin
-    fntdt = MLJ.report(mach_tuned).best_report.features
-    cntdt = sort(MLJ.report(mach_tuned).best_report.classes_seen)
-    soletuneddt = SoleModels.solemodel(
-        fitted_params(mach_tuned).best_fitted_params.tree;
-        featurenames = fntdt,
-        classlabels = cntdt
-    )
-end
+#begin
+#    fntdt = MLJ.report(mach_tuned).best_report.features
+#    cntdt = sort(MLJ.report(mach_tuned).best_report.classes_seen)
+#    soletuneddt = SoleModels.solemodel(
+#        fitted_params(mach_tuned).best_fitted_params.tree;
+#        featurenames = fntdt,
+#        classlabels = cntdt
+#    )
+#end
 
 # ╔═╡ 8692525e-a66d-4413-8722-80b9f1bf436a
 begin
@@ -531,11 +530,11 @@ end
 
 # ╔═╡ 60dda6b7-7efd-4f90-b96f-a20cce9441bc
 begin
-	intrees_extractor =  InTreesRuleExtractor()
+	intrees_extractor = InTreesRuleExtractor(min_coverage=1.0)
 	lumen_extractor = LumenRuleExtractor()
-	batrees_extractor=BATreesRuleExtractor()
-	refne_extractor=REFNERuleExtractor()
-	trepan_extractor=TREPANRuleExtractor()
+	batrees_extractor = BATreesRuleExtractor()
+	refne_extractor = REFNERuleExtractor()
+	trepan_extractor = TREPANRuleExtractor()
 end
 
 # ╔═╡ cdaf88f6-d1a6-4a77-a9f6-c68eca79d364
@@ -544,26 +543,61 @@ md"""
 TODO: with orca
 """
 
-# ╔═╡ 7ebaad1b-0f94-4649-8630-f5890bff2fed
-extracted_rules = RuleExtraction.extractrules(batrees_extractor, solerf)
-
 # ╔═╡ 69a04f86-9c42-49b1-92e3-02aaed3fd97b
 md"""
 # Model explanation
 """
 
-# ╔═╡ 8d28f8b0-1165-4ed2-bd3e-a09741363e83
+# ╔═╡ 3cb3502b-4846-480e-acad-52ccfcac0e84
 md"""
-# TODO
-----
-- SOLEMODELS
-- POSTHOC
-- wrap MLJ and DecisionTree code in utils/adapters.jl when it makes sense to do it
+prepariamo i dati:
 """
 
+# ╔═╡ 7008b6f7-806c-4a13-8010-8f8d1537b258
+begin 
+	# FEATURES
+	X_train_mat = Matrix(X_train)
+	X_test_mat  = Matrix(X_test)
+	
+	# LABELS
+	y_train_vec = Vector(y_train[:, 1])
+	y_test_vec  = Vector(y_test[:, 1])
+end
+
+# ╔═╡ d3f9cebb-2e31-4232-8577-66dcab631a19
+md"""
+Proviamo alcuni dei nostri numerosi estrattori
+"""
+
+# ╔═╡ 7ebaad1b-0f94-4649-8630-f5890bff2fed
+begin
+	extracted_rules_w_lumen = RuleExtraction.extractrules(lumen_extractor,solerf;minimization_scheme=:abc)
+	extracted_rules_w_lumen
+end
+
+# ╔═╡ 8d28f8b0-1165-4ed2-bd3e-a09741363e83
+extracted_rules_w_t = RuleExtraction.extractrules(trepan_extractor, solerf, X_test_mat)
+
+# ╔═╡ 1395bfbb-b447-4d68-9171-35b154c4db6f
+begin
+    X_train_mat2 = Matrix(X_train)
+    X_test_mat2 = Matrix(X_test)
+    y_train_vec2 = CategoricalArrays.unwrap.(y_train)
+    y_test_vec2 = CategoricalArrays.unwrap.(y_test)
+end
+
+# ╔═╡ 866f833d-dfc5-43a0-8dd5-a58679115f2b
+    extracted_rules_w_intrees = RuleExtraction.extractrules(
+        intrees_extractor,
+        solerf,
+        DataFrame(X_test),
+        y_test_vec
+    )
+
 # ╔═╡ Cell order:
+# ╠═3fb5d980-1477-4a63-b691-03e2b8f9e5da
 # ╟─34bafc6f-ac2a-4cdb-b9c2-f766111251cb
-# ╠═a1000000-3353-11f1-90b2-21952756a80b
+# ╟─a1000000-3353-11f1-90b2-21952756a80b
 # ╠═53c022c4-b0f3-42c0-94b0-7114bec855e7
 # ╠═9e1b6b33-65e7-4eb2-a26b-b622546a2d75
 # ╠═8afd5b7b-d0d7-4dcb-8911-f0fe02bd07e4
@@ -627,7 +661,6 @@ md"""
 # ╠═b03265a4-0776-41c9-846a-5e74b459814d
 # ╠═1d0cc054-5c38-46d5-9033-4872d265c0d8
 # ╠═c5000000-3353-11f1-90b2-21952756a80b
-# ╠═c6000000-3353-11f1-90b2-21952756a80b
 # ╠═c7000000-3353-11f1-90b2-21952756a80b
 # ╠═ca74043d-78ae-47a1-a58a-a8d349313fda
 # ╠═f147f0f9-5e64-4413-9142-c0ec6d081506
@@ -638,6 +671,11 @@ md"""
 # ╠═8692525e-a66d-4413-8722-80b9f1bf436a
 # ╠═60dda6b7-7efd-4f90-b96f-a20cce9441bc
 # ╠═cdaf88f6-d1a6-4a77-a9f6-c68eca79d364
-# ╠═7ebaad1b-0f94-4649-8630-f5890bff2fed
 # ╠═69a04f86-9c42-49b1-92e3-02aaed3fd97b
+# ╠═3cb3502b-4846-480e-acad-52ccfcac0e84
+# ╠═7008b6f7-806c-4a13-8010-8f8d1537b258
+# ╠═d3f9cebb-2e31-4232-8577-66dcab631a19
+# ╠═7ebaad1b-0f94-4649-8630-f5890bff2fed
 # ╠═8d28f8b0-1165-4ed2-bd3e-a09741363e83
+# ╠═1395bfbb-b447-4d68-9171-35b154c4db6f
+# ╠═866f833d-dfc5-43a0-8dd5-a58679115f2b
