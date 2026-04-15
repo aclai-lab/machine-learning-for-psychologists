@@ -73,13 +73,8 @@ Artifacts are Julia "containers of data" that are not Julia packages.
 SolePostHoc will leverage external programs for supporting advanced data compression functionalities.
 """
 
-# ╔═╡ 8afd5b7b-d0d7-4dcb-8911-f0fe02bd07e4
-# TODO: this could be removed
-# begin
-# 	fillartifacts()
-# 	abc_loader = ABCLoader()
-# 	mit_loader = MITESPRESSOLoader()
-# end
+# ╔═╡ 59f003ab-ebab-4fd3-9e9f-2bee9f07edf7
+fillartifacts()
 
 # ╔═╡ d7df4cf0-e938-471a-8284-e741588cf830
 md"""
@@ -253,7 +248,7 @@ md"""
 
 We proceed to leverage the training data to *induce a decision tree*.
 
-Actually, we define 10 different trees with different settings of the hyperparameters; then, we select one specific tree with a slider and proceed to train it.
+Actually, we define 10 different trees with different settings of their *hyperparameters*; then, we select one specific tree with a slider and proceed to train it.
 
 Note that the settings we propose here are trivial: we only change the max_depth of each tree, from one to ten. Later, we are going to make the training pipeline more robust, exploring different parameterizations automatically
 """
@@ -405,9 +400,9 @@ end
 
 # ╔═╡ b9000000-3353-11f1-90b2-21952756a80b
 md"""
-# Hyperparameter Tuning
+# Hyperparameter tuning
 
-TODO: explain about tuning models and grid search
+To avoid arbitrary settings of hyperparameters, we can rely on a systematic procedure called *grid search* (i.e., we try all the possible combinations considering many domains).
 """
 
 # ╔═╡ c0000000-3353-11f1-90b2-21952756a80b
@@ -444,13 +439,12 @@ md"**Precision Tuned DT (test set):** $(round(precision(cm_tuned), digits=4))"
 # ╔═╡ 58ee4d37-9fa9-4f09-9d37-15d9f69d5ac2
 md"**Recall Tuned DT (test set):** $(round(recall(cm_tuned), digits=4))"
 
-# ╔═╡ 009f7612-9336-4afb-9907-4d40934e2845
-precision(cm_tuned)
-
 # ╔═╡ 98213623-eaec-4928-bfea-c0f0c4f04f90
 md"""
 !!! tip "☀️ Model inspection with Sole ☀️"
-	Describe a typical path in the decision tree below.
+	Try to describe a typical path in the decision tree below.
+
+	Now it may look a little bit cumbersome, but we are going to definitely simplify this theory in a moment, leveraging Sole!
 """
 
 # ╔═╡ 5117a6c9-b090-4d85-9cbc-9500beb09f7e
@@ -458,6 +452,9 @@ SoleModels.solemodel(fitted_params(mach_dt).tree)
 
 # ╔═╡ c3000000-3353-11f1-90b2-21952756a80b
 md"## Random Forest"
+
+# ╔═╡ 2b686c03-03df-41c4-a78f-71aae61ad5ff
+LocalResource("../images/random_forest.png")
 
 # ╔═╡ c4000000-3353-11f1-90b2-21952756a80b
 RandomForestClassifier = @load RandomForestClassifier pkg=DecisionTree
@@ -528,7 +525,7 @@ md"**Recall Random Forest:** $(round(recall(cm_rf), digits=4))"
 md"""
 | Modello | Accuracy | Precision | Recall |
 |---------|----------|-----------|--------|
-| Decision Tree (depth=$(max_depth_value)) | $(round(accuracy(cm_dt), digits=4)) | $(round(precision(cm_dt), digits=4)) | $(round(recall(cm_dt), digits=4)) |
+| Decision Tree (depth=10) | $(round(accuracy(cm_dt), digits=4)) | $(round(precision(cm_dt), digits=4)) | $(round(recall(cm_dt), digits=4)) |
 | Decision Tree Tuned | $(round(accuracy(cm_tuned), digits=4)) | $(round(precision(cm_tuned), digits=4)) | $(round(recall(cm_tuned), digits=4)) |
 | Random Forest | $(round(accuracy(cm_rf), digits=4)) | $(round(precision(cm_rf), digits=4)) | $(round(recall(cm_rf), digits=4)) |
 """
@@ -541,51 +538,59 @@ begin
 
     tuned_forest = TunedModel(
         model      = MLJDecisionTreeInterface.RandomForestClassifier(),
-        resampling = CV(nfolds=3),          # 3 fold, niente stratified
+        resampling = CV(nfolds=3), 			# low, for keeping the computation light
         range      = [df_max_depth_range, df_min_samples_leaf_range, df_min_samples_split_range],
         measure    = accuracy,
         tuning     = RandomSearch(),
-        n          = 8                      # solo 8 combinazioni campionate
+        n          = 8                      # low, for keeping the computation light
     )
 
     df_mach_tuned = machine(tuned_forest, X, y)
     fit!(df_mach_tuned, verbosity=0)
 
     df_y_prob_tuned = MLJ.predict(df_mach_tuned, X_test)
-    df_y_pred_tuned = mode.(df_y_prob_tuned)   # era mode.(y_prob_tuned), mancava il prefisso df_
-    df_cm_tuned     = confusion_matrix(df_y_pred_tuned, y_test)  # stesso bug qui
+    df_y_pred_tuned = mode.(df_y_prob_tuned)
+    df_cm_tuned     = confusion_matrix(df_y_pred_tuned, y_test)
 end
 
 # ╔═╡ 524f77c3-ebe2-4e7d-bd00-538c3de83cd0
 begin
-	fndt = MLJ.report(mach_dt).features
-	cndt = sort(MLJ.report(mach_dt).classes_seen)
-	soledt = SoleModels.solemodel(fitted_params(mach_dt).tree;featurenames=fndt, classlabels = cndt)
+	featurenames_decisiontree = MLJ.report(mach_dt).features
+	classnames_decisiontree = sort(MLJ.report(mach_dt).classes_seen)
+	
+	sole_decisiontree =  SoleModels.solemodel(
+		fitted_params(mach_dt).tree;
+		featurenames = featurenames_decisiontree, 
+		classlabels = classnames_decisiontree
+	)
 end
 
 # ╔═╡ d8b150a0-261a-47fc-8ad5-c071f57c2077
 begin
-    fntdt = MLJ.report(mach_tuned).best_report.features
-    cntdt = sort(MLJ.report(mach_tuned).best_report.classes_seen)
-    soletuneddt = SoleModels.solemodel(
+    featurenames_tunedtree = MLJ.report(mach_tuned).best_report.features
+    classnames_tunedtree = sort(MLJ.report(mach_tuned).best_report.classes_seen)
+	
+    sole_tunedtree = SoleModels.solemodel(
         fitted_params(mach_tuned).best_fitted_params.tree;
-        featurenames = fntdt,
-        classlabels = cntdt
+        featurenames = featurenames_tunedtree,
+        classlabels = classnames_tunedtree
     )
 end
 
 # ╔═╡ 8692525e-a66d-4413-8722-80b9f1bf436a
 begin
-    fnrf = MLJ.report(mach_rf).features
-    cnrf = sort(MLJ.report(mach_dt).classes_seen)  # dal DT che già funziona
-    solerf = SoleModels.solemodel(
+    featurenames_randomforest = MLJ.report(mach_rf).features
+    classnames_randomforest = sort(MLJ.report(mach_dt).classes_seen) 
+	
+    sole_randomforest = SoleModels.solemodel(
         fitted_params(mach_rf).forest;
-        featurenames = fnrf,
-        classlabels = cnrf
+        featurenames = featurenames_randomforest,
+        classlabels = classnames_randomforest
     )
 end
 
 # ╔═╡ 60dda6b7-7efd-4f90-b96f-a20cce9441bc
+# Actually, this is solved in the next notebook
 begin
 	intrees_extractor =  InTreesRuleExtractor()
 	lumen_extractor = LumenRuleExtractor()
@@ -594,30 +599,9 @@ begin
 	trepan_extractor = TREPANRuleExtractor()
 end
 
-# ╔═╡ cdaf88f6-d1a6-4a77-a9f6-c68eca79d364
+# ╔═╡ ab968e84-0f3d-41f1-8e25-3928122b9408
 md"""
-# Model compression
-TODO: with orca
-"""
-
-# ╔═╡ 22ea69e1-3c84-47a8-af8c-34f763204b3c
-typeof(solerf)
-
-# ╔═╡ 7ebaad1b-0f94-4649-8630-f5890bff2fed
-extracted_rules = SolePostHoc.Lumen.lumen(solerf)
-
-# ╔═╡ 69a04f86-9c42-49b1-92e3-02aaed3fd97b
-md"""
-# Model explanation
-"""
-
-# ╔═╡ 8d28f8b0-1165-4ed2-bd3e-a09741363e83
-md"""
-# TODO
-----
-- SOLEMODELS
-- POSTHOC
-- wrap MLJ and DecisionTree code in utils/adapters.jl when it makes sense to do it
+# TODO: model (forest) serialization
 """
 
 # ╔═╡ Cell order:
@@ -625,7 +609,7 @@ md"""
 # ╠═a1000000-3353-11f1-90b2-21952756a80b
 # ╠═53c022c4-b0f3-42c0-94b0-7114bec855e7
 # ╠═9e1b6b33-65e7-4eb2-a26b-b622546a2d75
-# ╠═8afd5b7b-d0d7-4dcb-8911-f0fe02bd07e4
+# ╠═59f003ab-ebab-4fd3-9e9f-2bee9f07edf7
 # ╟─d7df4cf0-e938-471a-8284-e741588cf830
 # ╠═a2000000-3353-11f1-90b2-21952756a80b
 # ╠═a3000000-3353-11f1-90b2-21952756a80b
@@ -676,16 +660,16 @@ md"""
 # ╠═d3227330-0101-4253-838e-6f916fbbd18c
 # ╠═fd2a40f9-20f1-44a7-8231-9796dffd0922
 # ╠═b8000000-3353-11f1-90b2-21952756a80b
-# ╠═b9000000-3353-11f1-90b2-21952756a80b
-# ╠═c0000000-3353-11f1-90b2-21952756a80b
+# ╟─b9000000-3353-11f1-90b2-21952756a80b
+# ╟─c0000000-3353-11f1-90b2-21952756a80b
 # ╠═c1000000-3353-11f1-90b2-21952756a80b
 # ╟─c2000000-3353-11f1-90b2-21952756a80b
-# ╠═5b76d562-5472-416b-b63c-1fef7c81cd5f
-# ╠═58ee4d37-9fa9-4f09-9d37-15d9f69d5ac2
-# ╠═009f7612-9336-4afb-9907-4d40934e2845
-# ╠═98213623-eaec-4928-bfea-c0f0c4f04f90
+# ╟─5b76d562-5472-416b-b63c-1fef7c81cd5f
+# ╟─58ee4d37-9fa9-4f09-9d37-15d9f69d5ac2
+# ╟─98213623-eaec-4928-bfea-c0f0c4f04f90
 # ╠═5117a6c9-b090-4d85-9cbc-9500beb09f7e
 # ╟─c3000000-3353-11f1-90b2-21952756a80b
+# ╠═2b686c03-03df-41c4-a78f-71aae61ad5ff
 # ╠═c4000000-3353-11f1-90b2-21952756a80b
 # ╠═9410b8b8-10f0-460b-b46c-a7715cee1fe2
 # ╠═b6bc4920-7538-4df9-8295-4730db58be77
@@ -693,17 +677,13 @@ md"""
 # ╠═1d0cc054-5c38-46d5-9033-4872d265c0d8
 # ╠═c5000000-3353-11f1-90b2-21952756a80b
 # ╠═c6000000-3353-11f1-90b2-21952756a80b
-# ╠═c7000000-3353-11f1-90b2-21952756a80b
-# ╠═ca74043d-78ae-47a1-a58a-a8d349313fda
-# ╠═f147f0f9-5e64-4413-9142-c0ec6d081506
+# ╟─c7000000-3353-11f1-90b2-21952756a80b
+# ╟─ca74043d-78ae-47a1-a58a-a8d349313fda
+# ╟─f147f0f9-5e64-4413-9142-c0ec6d081506
 # ╠═bf81a25b-cbbe-4f61-8fe2-d558f13aeb5d
 # ╠═6fa4955d-c170-4e43-8cf6-0158cc08f60a
 # ╠═524f77c3-ebe2-4e7d-bd00-538c3de83cd0
 # ╠═d8b150a0-261a-47fc-8ad5-c071f57c2077
 # ╠═8692525e-a66d-4413-8722-80b9f1bf436a
 # ╠═60dda6b7-7efd-4f90-b96f-a20cce9441bc
-# ╠═cdaf88f6-d1a6-4a77-a9f6-c68eca79d364
-# ╠═22ea69e1-3c84-47a8-af8c-34f763204b3c
-# ╠═7ebaad1b-0f94-4649-8630-f5890bff2fed
-# ╠═69a04f86-9c42-49b1-92e3-02aaed3fd97b
-# ╠═8d28f8b0-1165-4ed2-bd3e-a09741363e83
+# ╠═ab968e84-0f3d-41f1-8e25-3928122b9408
