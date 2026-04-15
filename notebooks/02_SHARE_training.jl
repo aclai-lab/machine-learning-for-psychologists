@@ -635,8 +635,16 @@ md"""
 Proviamo alcuni dei nostri numerosi estrattori
 """
 
+# ╔═╡ c4aa241b-d4da-4b08-9143-9ff2754564cc
+md"""
+### Start the 💡 Lumen extractor 💡
+"""
+
+# ╔═╡ fa4f5fc2-aa91-484a-9544-f09a36857db1
+@bind start_lumen_extractor Switch(; default=false)
+
 # ╔═╡ 7ebaad1b-0f94-4649-8630-f5890bff2fed
-begin
+if start_lumen_extractor
 	extracted_rules_w_lumen = RuleExtraction.extractrules(
 		lumen_extractor,
 		sole_randomforest;
@@ -646,35 +654,40 @@ begin
 	extracted_rules_w_lumen
 end
 
-# ╔═╡ 8d28f8b0-1165-4ed2-bd3e-a09741363e83
-extracted_rules_w_t = RuleExtraction.extractrules(
-	trepan_extractor, 
-	sole_randomforest, 
-	X_test_mat
-)
+# ╔═╡ 3f87b4ca-a1ca-4622-8ed6-edc18480dc63
+md"""
+### Start Trepan extractor
+"""
 
-# ╔═╡ 1395bfbb-b447-4d68-9171-35b154c4db6f
-begin
-    X_train_mat2 = Matrix(X_train)
-    X_test_mat2 = Matrix(X_test)
-    y_train_vec2 = CategoricalArrays.unwrap.(y_train)
-    y_test_vec2 = CategoricalArrays.unwrap.(y_test)
+# ╔═╡ 1d3eb7ab-3765-485e-bfdd-0ca236004e75
+@bind start_trepan_extractor Switch(; default=false)
+
+# ╔═╡ 8d28f8b0-1165-4ed2-bd3e-a09741363e83
+if start_trepan_extractor
+	extracted_rules_w_t = RuleExtraction.extractrules(
+		trepan_extractor, 
+		sole_randomforest, 
+		X_test_mat
+	)
 end
 
+# ╔═╡ f93ecd9e-3cad-4afd-a6e3-fbabf9f347a5
+md"""
+### Start Intrees extractor
+"""
+
+# ╔═╡ bfdb2bfd-8c23-4f04-b60e-b60ff5a927fd
+@bind start_intrees_extractor Switch(; default=false)
+
 # ╔═╡ 866f833d-dfc5-43a0-8dd5-a58679115f2b
-    extracted_rules_w_intrees = RuleExtraction.extractrules(
+if start_intrees_extractor
+	extracted_rules_w_intrees = RuleExtraction.extractrules(
         intrees_extractor,
         sole_randomforest,
         DataFrame(X_test),
         y_test_vec
     )
-
-# ╔═╡ 8afd5b7b-d0d7-4dcb-8911-f0fe02bd07e4
-#begin
-#	fillartifacts()
-#	abc_loader = ABCLoader()
-#	mit_loader = MITESPRESSOLoader()
-#end
+end
 
 # ╔═╡ Cell order:
 # ╟─34bafc6f-ac2a-4cdb-b9c2-f766111251cb
@@ -761,8 +774,12 @@ end
 # ╠═3cb3502b-4846-480e-acad-52ccfcac0e84
 # ╠═7008b6f7-806c-4a13-8010-8f8d1537b258
 # ╠═d3f9cebb-2e31-4232-8577-66dcab631a19
+# ╟─c4aa241b-d4da-4b08-9143-9ff2754564cc
+# ╠═fa4f5fc2-aa91-484a-9544-f09a36857db1
 # ╠═7ebaad1b-0f94-4649-8630-f5890bff2fed
+# ╟─3f87b4ca-a1ca-4622-8ed6-edc18480dc63
+# ╠═1d3eb7ab-3765-485e-bfdd-0ca236004e75
 # ╠═8d28f8b0-1165-4ed2-bd3e-a09741363e83
-# ╠═1395bfbb-b447-4d68-9171-35b154c4db6f
+# ╟─f93ecd9e-3cad-4afd-a6e3-fbabf9f347a5
+# ╟─bfdb2bfd-8c23-4f04-b60e-b60ff5a927fd
 # ╠═866f833d-dfc5-43a0-8dd5-a58679115f2b
-# ╠═8afd5b7b-d0d7-4dcb-8911-f0fe02bd07e4
