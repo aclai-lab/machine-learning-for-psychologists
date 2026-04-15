@@ -47,6 +47,15 @@ begin
 	using StatsPlots	
 end
 
+# ╔═╡ 2807db23-4cbb-4542-9de1-26610595c6bd
+md"""
+# SHARE data preprocessing
+
+Welcome! In this project, we are interested in training a machine learning model for properly estimate the risk of an individual developing depression.
+
+In this notebook we focus in the data exploration and cleaning processes.
+"""
+
 # ╔═╡ 49733da1-b29a-41cd-a1dd-3d748ca70f97
 md"""
 # Imports
@@ -56,11 +65,13 @@ md"""
 md"""
 # Data Loading
 
-In this section, we are going to load the raw data TODO: write the fact that this was originally public, and then was refined by murri. refined by Murri et al., as described in their work [Risk Prediction Models for Depression in Community-Dwelling Older Adults](https://www.ajgponline.org/article/S1064-7481(22)00435-3/abstract). 
+In this section, we are going to load the data coming from the SHARE research infrastructure, consisting of more than 40.000 surveys.
 
-The data was collected with the final goal of developing machine-learning predictors for late-life depression, including demographic characteristics, health-related factors, disability and individual depressive symptoms.
+It is important to note that the data is publicly available, but we are going to consider a slightly refined version by Murri et al., described in their work [Risk Prediction Models for Depression in Community-Dwelling Older Adults](https://www.ajgponline.org/article/S1064-7481(22)00435-3/abstract). 
 
-In particular, here we are dealing with data from wave 5 (collected in 2013), consisting of baseline and retrospective information, and outcome data from wave 6 (collected in 2015). 
+In the work just mentioned, data was collected with the final goal of developing machine-learning predictors for late-life depression, including demographic characteristics, health-related factors, disability and individual depressive symptoms.
+
+In particular, we are dealing with data from wave 5 (collected in 2013), consisting of baseline and retrospective information, and outcome data from wave 6 (collected in 2015). 
 """
 
 # ╔═╡ e11b7142-8349-452e-9f8c-aaf006d90790
@@ -675,6 +686,64 @@ md"""
 	The size went from **$(size(df_typed))** to **$(size(df_freq_filter))**.
 """
 
+# ╔═╡ 401f93f6-9253-43ba-8957-83f214fde4f0
+md"""
+### Monovariate approach
+"""
+
+# ╔═╡ 57a07a80-0aea-44c2-9d53-2f2f9d8c201b
+md"""
+We proceed to filter out specific instances being outliers for certain attributes.
+
+For didactic purposes, let us fix the *age* attribute. Given the age of a specific instance, `x`, we are going to compute its z-score: 
+
+```math 
+z = \frac{x - \mu}{\sigma}
+```
+
+The score tells us how many standard deviations a value is from the mean age.
+"""
+
+# ╔═╡ 9d51ce42-752c-46f2-87bc-c064b952e770
+LocalResource("../images/standard_deviation_diagram.png")
+
+# ╔═╡ 94eadd14-2445-4ecc-a678-e8fc981674d8
+# begin
+# 	age_column = df_ent_filter[:, name_of_numeric_attribute]
+# 	mu = mean(age_column)
+# 	sigma = std(age_column)
+# 	z = (age_column .- mu) ./ sigma
+# end
+
+# TODO: move this before mutual information, and create two subtitles called univariate (multivariate) filtering
+begin
+	age_column = df_freq_filter[:, "age"]
+	z = zscore(age_column)
+end
+
+# ╔═╡ d88e83ce-a1d5-4b6d-9f49-061a307dbee4
+@bind z_score_threshold Slider(0.01:0.01:4, show_value=true, default=2.0)
+
+# ╔═╡ d5851387-9ceb-41ca-9e7a-e4064080e8cb
+df_no_outliers = filter_df(df_freq_filter, :zscore;
+	z_threshold=z_score_threshold,
+	ignore_cols=["euro_d"]);
+
+# ╔═╡ cca099f8-16f7-4960-bda0-ac86057be55b
+plot(
+	histogram(df_freq_filter[:, "age"]; title="age distribution", legend=false),
+	histogram(df_no_outliers[:, "age"]; title="age within $(z_score_threshold)σ", legend=false);
+	layout=(1, 2)
+)
+
+# ╔═╡ aca83632-41ae-4696-ba82-7bcbbc5c6571
+size(df_no_outliers)
+
+# ╔═╡ f7a5338f-9652-49f6-a95b-a91477e0788a
+md"""
+### Multivariate approach
+"""
+
 # ╔═╡ cfc63ecc-56e9-4347-b9af-122b83a2f9a3
 md"""
 As a more refined filtering strategy, let us compute the *entropy* ``H(X)`` along each column ``X = \{x_1, x_2, \ldots, x_n\}``.
@@ -743,10 +812,11 @@ md"""
 # ╔═╡ 240443a3-42f2-4baf-b46b-621b97d5cd51
 mi_dict = Dict(
 	name => mutual_information(
-		df_freq_filter[:, name], 
-		df_freq_filter[:, "euro_d"];
+		df_no_outliers[:, name], 
+		df_no_outliers[:, "euro_d"];
 	) 
-	for name in names(df_freq_filter)
+	for name in names(df_no_outliers)
+	if name != "euro_d"
 )
 
 # ╔═╡ 7e3de156-3690-4ec2-b138-093f239f4a32
@@ -760,7 +830,6 @@ mi_dict_sorted = sort(
 
 # ╔═╡ 28e85f18-0f54-459d-989c-6a971f25b15f
 begin
-	# TODO: remove euro_d because
 	println("Top $(top_k_print) mutual information:")
     for (col, ent) in reverse(mi_dict_sorted)[1:top_k_print]
         println("$col → $ent")
@@ -801,61 +870,13 @@ begin
 end
 
 # ╔═╡ 3dc492e3-533d-46c0-bb4f-65496e87961d
-df_ent_filter = filter_df(df_freq_filter, :information;
+df_mi_filter = filter_df(df_no_outliers, :information;
     information_dictionary=mi_dict,
 	information_threshold=mi_threshold,
 	ignore_cols=["euro_d"]);
 
 # ╔═╡ da8e28da-c864-4eeb-b163-e3349be49567
-size(df_ent_filter)
-
-# ╔═╡ 57a07a80-0aea-44c2-9d53-2f2f9d8c201b
-md"""
-We proceed to filter out specific instances being outliers for certain attributes.
-
-For didactic purposes, let us fix the *age* attribute. Given the age of a specific instance, `x`, we are going to compute its z-score: 
-
-```math 
-z = \frac{x - \mu}{\sigma}
-```
-
-The score tells us how many standard deviations a value is from the mean age.
-"""
-
-# ╔═╡ 9d51ce42-752c-46f2-87bc-c064b952e770
-LocalResource("../images/standard_deviation_diagram.png")
-
-# ╔═╡ 94eadd14-2445-4ecc-a678-e8fc981674d8
-# begin
-# 	age_column = df_ent_filter[:, name_of_numeric_attribute]
-# 	mu = mean(age_column)
-# 	sigma = std(age_column)
-# 	z = (age_column .- mu) ./ sigma
-# end
-
-# TODO: move this before mutual information, and create two subtitles called univariate (multivariate) filtering
-begin
-	age_column = df_ent_filter[:, "age"]
-	z = zscore(age_column)
-end
-
-# ╔═╡ d88e83ce-a1d5-4b6d-9f49-061a307dbee4
-@bind z_score_threshold Slider(0.01:0.01:4, show_value=true, default=2.0)
-
-# ╔═╡ d5851387-9ceb-41ca-9e7a-e4064080e8cb
-df_no_outliers = filter_df(df_ent_filter, :zscore;
-	z_threshold=z_score_threshold,
-	ignore_cols=["euro_d"]);
-
-# ╔═╡ cca099f8-16f7-4960-bda0-ac86057be55b
-plot(
-	histogram(df_ent_filter[:, "age"]; title="age distribution", legend=false),
-	histogram(df_no_outliers[:, "age"]; title="age within $(z_score_threshold)σ", legend=false);
-	layout=(1, 2)
-)
-
-# ╔═╡ aca83632-41ae-4696-ba82-7bcbbc5c6571
-size(df_no_outliers)
+size(df_mi_filter)
 
 # ╔═╡ 9eee2f67-92b8-48c2-b502-73efa704562c
 md"""
@@ -899,7 +920,7 @@ function save_files()
 
 	println("Writing to $(SERIALIZE_PATH)")
 	
-    serialize(SERIALIZE_PATH, df_no_outliers)
+    serialize(SERIALIZE_PATH, df_mi_filter)
 end
 
 # ╔═╡ c709b580-e26a-42be-a5c1-bb76833efd65
@@ -911,6 +932,7 @@ if enable_saving == true
 end
 
 # ╔═╡ Cell order:
+# ╟─2807db23-4cbb-4542-9de1-26610595c6bd
 # ╟─49733da1-b29a-41cd-a1dd-3d748ca70f97
 # ╠═494947b5-219b-43ad-b29f-56216b3dc639
 # ╟─a6c8a233-8c6f-43b2-a4fd-a0bbc6425d74
@@ -977,6 +999,15 @@ end
 # ╠═9bd07589-0e70-401a-aabd-11772b32aa34
 # ╠═a6b4bfef-7486-493d-b4e4-e6717d34c942
 # ╟─62744abc-80f2-49aa-9a49-f371a4427194
+# ╠═401f93f6-9253-43ba-8957-83f214fde4f0
+# ╟─57a07a80-0aea-44c2-9d53-2f2f9d8c201b
+# ╠═9d51ce42-752c-46f2-87bc-c064b952e770
+# ╠═94eadd14-2445-4ecc-a678-e8fc981674d8
+# ╠═d88e83ce-a1d5-4b6d-9f49-061a307dbee4
+# ╠═d5851387-9ceb-41ca-9e7a-e4064080e8cb
+# ╠═cca099f8-16f7-4960-bda0-ac86057be55b
+# ╠═aca83632-41ae-4696-ba82-7bcbbc5c6571
+# ╠═f7a5338f-9652-49f6-a95b-a91477e0788a
 # ╟─cfc63ecc-56e9-4347-b9af-122b83a2f9a3
 # ╟─35aa1f50-a2db-42c5-a080-45ec0d76ee33
 # ╟─2380ce25-6af6-4ed3-b528-d4fd55ef4abb
@@ -991,13 +1022,6 @@ end
 # ╠═b0b97508-39a1-4f91-9975-188bbae4cb1b
 # ╠═3dc492e3-533d-46c0-bb4f-65496e87961d
 # ╠═da8e28da-c864-4eeb-b163-e3349be49567
-# ╟─57a07a80-0aea-44c2-9d53-2f2f9d8c201b
-# ╠═9d51ce42-752c-46f2-87bc-c064b952e770
-# ╠═94eadd14-2445-4ecc-a678-e8fc981674d8
-# ╠═d88e83ce-a1d5-4b6d-9f49-061a307dbee4
-# ╠═d5851387-9ceb-41ca-9e7a-e4064080e8cb
-# ╠═cca099f8-16f7-4960-bda0-ac86057be55b
-# ╠═aca83632-41ae-4696-ba82-7bcbbc5c6571
 # ╟─9eee2f67-92b8-48c2-b502-73efa704562c
 # ╟─12533c7b-ca7f-4960-b969-77ae3f0e9063
 # ╠═f59ae421-e01c-43f1-9e15-6805f96aa746
