@@ -216,13 +216,14 @@ begin
     (X_train, X_test), (y_train, y_test) = partition(
         (X, y), 0.7;
 
-		rng=RNG_SEED, 
-
 		# sometimes, data is ordered via a criterion we do not want to assume
 		shuffle=true,
 
 		# we need this to keep Xs and ys glued pairwise
-		multi=true
+		multi=true,
+
+		# for reproducibility
+		rng=RNG_SEED
     )
 end
 
@@ -254,7 +255,7 @@ md"""
 
 We proceed to leverage the training data to *induce a decision tree*.
 
-Actually, we define 10 different trees with different settings of the hyperparameters; then, we select one specific tree with a slider and proceed to train it.
+Actually, we define 10 different trees with different settings of their *hyperparameters*; then, we select one specific tree with a slider and proceed to train it.
 
 Note that the settings we propose here are trivial: we only change the max_depth of each tree, from one to ten. Later, we are going to make the training pipeline more robust, exploring different parameterizations automatically
 """
@@ -281,35 +282,52 @@ begin
     DecisionTreeClassifier = @load DecisionTreeClassifier pkg=DecisionTree verbosity=0
 end
 
-# ╔═╡ d8b09a29-2f37-4ff5-af0f-b7c03258c8af
-# TODO: show that the DecisionTree can be used with X_train, but not with X_raw
-MLJ.models(matching(X_train, y_train))
+# ╔═╡ 99f3b672-b24e-4d09-a1bb-cc4b2f928347
+md"""
+The two commands below demonstrate that the specific implementation of decision tree coming from `DecisionTree.jl` is not compatible with `Multiclass` scientific type (whilst the one coming from `BetaML` could be fine by-design!).
+"""
 
-# ╔═╡ c1ea8a00-0772-4717-af4b-cf848a825a10
-possible_max_depths = collect(1:10)
+# ╔═╡ a1ee0585-0fb7-4019-ae32-fc2fbf9588b3
+MLJ.models(matching(X_raw, y))
 
-# ╔═╡ ebe914ce-c030-4bb6-bee7-f72713da1954
-models = DecisionTreeClassifier[]
-
-# ╔═╡ df689893-a895-4b3e-85a2-5364274bf575
-for d in possible_max_depths
-	model = MLJDecisionTreeInterface.DecisionTreeClassifier(
-    	max_depth = d,
-    	min_samples_leaf = 1,
-    	min_samples_split = 2,
-		min_purity_increase = 0.0,
-		n_subfeatures = 0.0,
-		post_prune = false,
-		merge_purity_threshold = 0.9
-	)
-	push!(models,model)
+# ╔═╡ c9999307-8118-4b39-b74f-8296685035b6
+for model in MLJ.models(matching(X_raw, y))
+	if model.name == "DecisionTreeClassifier"
+		println(model)
+	end
 end
 
-# ╔═╡ b3000000-3353-11f1-90b2-21952756a80b
-@bind max_depth_value Slider(possible_max_depths, default=5, show_value=true)
+# ╔═╡ d8b09a29-2f37-4ff5-af0f-b7c03258c8af
+MLJ.models(matching(X_train, y_train))
 
-# ╔═╡ b4000000-3353-11f1-90b2-21952756a80b
-model = models[max_depth_value]
+# ╔═╡ 3c57b20b-42c0-464e-be47-ce653dfff359
+for model in MLJ.models(matching(X_train, y_train))
+	if model.name == "DecisionTreeClassifier"
+		println(model)
+	end
+end
+
+# ╔═╡ 125b244f-762a-449a-ac71-daa428650f81
+md"""
+!!! info "Exercise"
+	Select the type `MLJDecisionTreeInterface.DecisionTreeClassifier` and click the "Live docs" in the bottom-right button.
+
+	We want to answer two questions:
+	1. how is it called the specific algorithm implemented by `DecisionTrees.jl` for inducing decision tree models?
+	2. which hyperparameters are available?
+"""
+
+# ╔═╡ df689893-a895-4b3e-85a2-5364274bf575
+model = MLJDecisionTreeInterface.DecisionTreeClassifier(
+	max_depth = 10,
+	min_samples_leaf = 1,
+	min_samples_split = 2,
+	min_purity_increase = 0.0,
+	n_subfeatures = 0.0,
+	post_prune = false,
+	merge_purity_threshold = 0.9,
+	rng = RNG_SEED
+)
 
 # ╔═╡ b5000000-3353-11f1-90b2-21952756a80b
 begin
@@ -320,10 +338,28 @@ begin
     cm_dt = confusion_matrix(y_pred_dt, y_test)
 end
 
-# ╔═╡ 38110cbb-592d-474b-bb6a-671e26cb2298
+# ╔═╡ 1f8b37ed-336b-4f6e-9d47-643bdf5295d7
 md"""
-!!! info "How to read the confusion matrix"
-	TODO: write about precision and recall.
+To assess the quality of the trained model, we leverage a *confusion matrix* (see below).
+
+In general, we are interested in three metrics: *accuracy*, *precision* and *recall* (or *sensitivity*, as indicated below).
+
+**Accuracy** tells us how often the model is right across all classes; it is about the overall proportion of correct predictions but **can be misleading when data is unbalanced**.
+
+**Precision** is the proportion of predicted positives that are actually correct; this indicates "how reliable" positive predictions are.
+
+**Recall** is the proportion of actual positives that are captured; if the recall is low, then just a few positives are captured.
+"""
+
+# ╔═╡ c8ac4328-8f16-4033-baec-2b7861c4010f
+LocalResource("../images/confusion_matrix.png")
+
+# ╔═╡ ac27ff8d-dacb-4cae-b7e3-cc70135feaa6
+md"""
+!!! info "Exercise"
+	What happens when the recall is low and the precision is high?
+
+	What happens when the converse holds?
 """
 
 # ╔═╡ b6000000-3353-11f1-90b2-21952756a80b
@@ -338,12 +374,31 @@ md"**Precision Decision Tree (test set):** $(round(precision(cm_dt), digits=4))"
 # ╔═╡ 948beef6-c940-4852-9500-76fb521aa437
 md"**Recall Decision Tree (test set):** $(round(recall(cm_dt), digits=4))"
 
+# ╔═╡ d5458851-5414-484c-82cc-4e63b5ec06ef
+md"""
+!!! warning "Cross validation"
+	Beware: the performance of our trained model could depend on the partitioning of data in the training and test set.
+
+	To remove luck from the process we can rely on a more robust *training schema*, called *cross validation*.
+
+	Essentially, **cross validation** is about splitting the original data into multiple folds and repeatedly training and testing the model on different folds.
+
+	An important variant, in the context of this work, is **stratified cross validation**, in which each fold preserves the class distribution of the original dataset; this guarantees a stable evaluation of the model (there are )
+	Stratified cross validation  follows the same procedure but ensures that each fold preserves the class distribution of the original dataset.
+"""
+
+# ╔═╡ d3227330-0101-4253-838e-6f916fbbd18c
+LocalResource("../images/cross_validation.png")
+
+# ╔═╡ fd2a40f9-20f1-44a7-8231-9796dffd0922
+LocalResource("../images/stratified_cross_validation.png")
+
 # ╔═╡ b8000000-3353-11f1-90b2-21952756a80b
 begin
     mach_cv = machine(model, X, y)
     acc_cv = evaluate!(
         mach_cv;
-        resampling = StratifiedCV(nfolds=10, shuffle=true),
+        resampling = StratifiedCV(nfolds=10, shuffle=true, rng=RNG_SEED),
         measures   = [accuracy],
         verbosity  = 0
     )
@@ -352,9 +407,9 @@ end
 
 # ╔═╡ b9000000-3353-11f1-90b2-21952756a80b
 md"""
-# Hyperparameter Tuning
+# Hyperparameter tuning
 
-TODO: explain about tuning models and grid search
+To avoid arbitrary settings of hyperparameters, we can rely on a systematic procedure called *grid search* (i.e., we try all the possible combinations considering many domains).
 """
 
 # ╔═╡ c0000000-3353-11f1-90b2-21952756a80b
@@ -391,13 +446,12 @@ TODO: explain about tuning models and grid search
 # ╔═╡ 58ee4d37-9fa9-4f09-9d37-15d9f69d5ac2
 #md"**Recall Tuned DT (test set):** $(round(recall(cm_tuned), digits=4))"
 
-# ╔═╡ 009f7612-9336-4afb-9907-4d40934e2845
-#precision(cm_tuned)
-
 # ╔═╡ 98213623-eaec-4928-bfea-c0f0c4f04f90
 md"""
 !!! tip "☀️ Model inspection with Sole ☀️"
-	Describe a typical path in the decision tree below.
+	Try to describe a typical path in the decision tree below.
+
+	Now it may look a little bit cumbersome, but we are going to definitely simplify this theory in a moment, leveraging Sole!
 """
 
 # ╔═╡ 5117a6c9-b090-4d85-9cbc-9500beb09f7e
@@ -405,6 +459,9 @@ SoleModels.solemodel(fitted_params(mach_dt).tree)
 
 # ╔═╡ c3000000-3353-11f1-90b2-21952756a80b
 md"## Random Forest"
+
+# ╔═╡ 2b686c03-03df-41c4-a78f-71aae61ad5ff
+LocalResource("../images/random_forest.png")
 
 # ╔═╡ c4000000-3353-11f1-90b2-21952756a80b
 RandomForestClassifier = @load RandomForestClassifier pkg=DecisionTree
@@ -472,63 +529,72 @@ md"**Recall Random Forest:** $(round(recall(cm_rf), digits=4))"
 md"""
 | Modello | Accuracy | Precision | Recall |
 |---------|----------|-----------|--------|
-| Decision Tree (depth=$(max_depth_value)) | $(round(accuracy(cm_dt), digits=4)) | $(round(precision(cm_dt), digits=4)) | $(round(recall(cm_dt), digits=4)) |
- Random Forest | $(round(accuracy(cm_rf), digits=4)) | $(round(precision(cm_rf), digits=4)) | $(round(recall(cm_rf), digits=4)) |
+| Decision Tree (depth=10) | $(round(accuracy(cm_dt), digits=4)) | $(round(precision(cm_dt), digits=4)) | $(round(recall(cm_dt), digits=4)) |
+| Decision Tree Tuned | $(round(accuracy(cm_tuned), digits=4)) | $(round(precision(cm_tuned), digits=4)) | $(round(recall(cm_tuned), digits=4)) |
+| Random Forest | $(round(accuracy(cm_rf), digits=4)) | $(round(precision(cm_rf), digits=4)) | $(round(recall(cm_rf), digits=4)) |
 """
 
 # ╔═╡ 6fa4955d-c170-4e43-8cf6-0158cc08f60a
-#begin
-#    df_max_depth_range       = range(model, :max_depth,         lower=2, upper=4)
-#    df_min_samples_leaf_range  = range(model, :min_samples_leaf,  lower=1, upper=2)
-#    df_min_samples_split_range = range(model, :min_samples_split, lower=2, upper=4)
-#
-#    tuned_forest = TunedModel(
-#        model      = MLJDecisionTreeInterface.RandomForestClassifier(),
-#        resampling = CV(nfolds=3),          # 3 fold, niente stratified
-#        range      = [df_max_depth_range, df_min_samples_leaf_range, #df_min_samples_split_range],
-#        measure    = accuracy,
-#        tuning     = RandomSearch(),
-#        n          = 8                      # solo 8 combinazioni campionate
-#    )
-#
-#    df_mach_tuned = machine(tuned_forest, X, y)
-#    fit!(df_mach_tuned, verbosity=0)
-#
-#    df_y_prob_tuned = MLJ.predict(df_mach_tuned, X_test)
-#    df_y_pred_tuned = mode.(df_y_prob_tuned)   # era mode.(y_prob_tuned), mancava il #prefisso df_
-#    df_cm_tuned     = confusion_matrix(df_y_pred_tuned, y_test)  # stesso bug qui
-#end
+begin
+    df_max_depth_range       = range(model, :max_depth,         lower=2, upper=4)
+    df_min_samples_leaf_range  = range(model, :min_samples_leaf,  lower=1, upper=2)
+    df_min_samples_split_range = range(model, :min_samples_split, lower=2, upper=4)
+
+    tuned_forest = TunedModel(
+        model      = MLJDecisionTreeInterface.RandomForestClassifier(),
+        resampling = CV(nfolds=3), 			# low, for keeping the computation light
+        range      = [df_max_depth_range, df_min_samples_leaf_range, df_min_samples_split_range],
+        measure    = accuracy,
+        tuning     = RandomSearch(),
+        n          = 8                      # low, for keeping the computation light
+    )
+
+    df_mach_tuned = machine(tuned_forest, X, y)
+    fit!(df_mach_tuned, verbosity=0)
+
+    df_y_prob_tuned = MLJ.predict(df_mach_tuned, X_test)
+    df_y_pred_tuned = mode.(df_y_prob_tuned)
+    df_cm_tuned     = confusion_matrix(df_y_pred_tuned, y_test)
+end
 
 # ╔═╡ 524f77c3-ebe2-4e7d-bd00-538c3de83cd0
 begin
-	fndt = MLJ.report(mach_dt).features
-	cndt = sort(MLJ.report(mach_dt).classes_seen)
-	soledt = SoleModels.solemodel(fitted_params(mach_dt).tree;featurenames=fndt, classlabels = cndt)
+	featurenames_decisiontree = MLJ.report(mach_dt).features
+	classnames_decisiontree = sort(MLJ.report(mach_dt).classes_seen)
+	
+	sole_decisiontree =  SoleModels.solemodel(
+		fitted_params(mach_dt).tree;
+		featurenames = featurenames_decisiontree, 
+		classlabels = classnames_decisiontree
+	)
 end
 
 # ╔═╡ d8b150a0-261a-47fc-8ad5-c071f57c2077
-#begin
-#    fntdt = MLJ.report(mach_tuned).best_report.features
-#    cntdt = sort(MLJ.report(mach_tuned).best_report.classes_seen)
-#    soletuneddt = SoleModels.solemodel(
-#        fitted_params(mach_tuned).best_fitted_params.tree;
-#        featurenames = fntdt,
-#        classlabels = cntdt
-#    )
-#end
+begin
+    featurenames_tunedtree = MLJ.report(mach_tuned).best_report.features
+    classnames_tunedtree = sort(MLJ.report(mach_tuned).best_report.classes_seen)
+	
+    sole_tunedtree = SoleModels.solemodel(
+        fitted_params(mach_tuned).best_fitted_params.tree;
+        featurenames = featurenames_tunedtree,
+        classlabels = classnames_tunedtree
+    )
+end
 
 # ╔═╡ 8692525e-a66d-4413-8722-80b9f1bf436a
 begin
-    fnrf = MLJ.report(mach_rf).features
-    cnrf = sort(MLJ.report(mach_dt).classes_seen)  # dal DT che già funziona
-    solerf = SoleModels.solemodel(
+    featurenames_randomforest = MLJ.report(mach_rf).features
+    classnames_randomforest = sort(MLJ.report(mach_dt).classes_seen) 
+	
+    sole_randomforest = SoleModels.solemodel(
         fitted_params(mach_rf).forest;
-        featurenames = fnrf,
-        classlabels = cnrf
+        featurenames = featurenames_randomforest,
+        classlabels = classnames_randomforest
     )
 end
 
 # ╔═╡ 60dda6b7-7efd-4f90-b96f-a20cce9441bc
+# Actually, this is solved in the next notebook
 begin
 	intrees_extractor = InTreesRuleExtractor(min_coverage=1.0)
 	lumen_extractor = LumenRuleExtractor()
@@ -600,7 +666,7 @@ end
 # ╟─a1000000-3353-11f1-90b2-21952756a80b
 # ╠═53c022c4-b0f3-42c0-94b0-7114bec855e7
 # ╠═9e1b6b33-65e7-4eb2-a26b-b622546a2d75
-# ╠═8afd5b7b-d0d7-4dcb-8911-f0fe02bd07e4
+# ╠═59f003ab-ebab-4fd3-9e9f-2bee9f07edf7
 # ╟─d7df4cf0-e938-471a-8284-e741588cf830
 # ╠═a2000000-3353-11f1-90b2-21952756a80b
 # ╠═a3000000-3353-11f1-90b2-21952756a80b
@@ -632,38 +698,45 @@ end
 # ╟─64d0496d-51f0-48f1-9068-f34328d7a857
 # ╠═76edf51c-7ca6-49d1-85e8-bab1b77c04c2
 # ╠═b1000000-3353-11f1-90b2-21952756a80b
+# ╟─99f3b672-b24e-4d09-a1bb-cc4b2f928347
+# ╠═a1ee0585-0fb7-4019-ae32-fc2fbf9588b3
+# ╠═c9999307-8118-4b39-b74f-8296685035b6
 # ╠═d8b09a29-2f37-4ff5-af0f-b7c03258c8af
-# ╠═c1ea8a00-0772-4717-af4b-cf848a825a10
-# ╠═ebe914ce-c030-4bb6-bee7-f72713da1954
-# ╠═df689893-a895-4b3e-85a2-5364274bf575
-# ╠═b3000000-3353-11f1-90b2-21952756a80b
-# ╠═b4000000-3353-11f1-90b2-21952756a80b
+# ╠═3c57b20b-42c0-464e-be47-ce653dfff359
+# ╟─125b244f-762a-449a-ac71-daa428650f81
+# ╟─df689893-a895-4b3e-85a2-5364274bf575
 # ╠═b5000000-3353-11f1-90b2-21952756a80b
-# ╠═38110cbb-592d-474b-bb6a-671e26cb2298
+# ╟─1f8b37ed-336b-4f6e-9d47-643bdf5295d7
+# ╠═c8ac4328-8f16-4033-baec-2b7861c4010f
+# ╟─ac27ff8d-dacb-4cae-b7e3-cc70135feaa6
 # ╠═b6000000-3353-11f1-90b2-21952756a80b
 # ╟─b7000000-3353-11f1-90b2-21952756a80b
 # ╟─edc4f8f8-12b9-45b2-bbbe-32736dc6fbd3
 # ╟─948beef6-c940-4852-9500-76fb521aa437
+# ╟─d5458851-5414-484c-82cc-4e63b5ec06ef
+# ╠═d3227330-0101-4253-838e-6f916fbbd18c
+# ╠═fd2a40f9-20f1-44a7-8231-9796dffd0922
 # ╠═b8000000-3353-11f1-90b2-21952756a80b
-# ╠═b9000000-3353-11f1-90b2-21952756a80b
-# ╠═c0000000-3353-11f1-90b2-21952756a80b
+# ╟─b9000000-3353-11f1-90b2-21952756a80b
+# ╟─c0000000-3353-11f1-90b2-21952756a80b
 # ╠═c1000000-3353-11f1-90b2-21952756a80b
 # ╟─c2000000-3353-11f1-90b2-21952756a80b
-# ╠═5b76d562-5472-416b-b63c-1fef7c81cd5f
-# ╠═58ee4d37-9fa9-4f09-9d37-15d9f69d5ac2
-# ╠═009f7612-9336-4afb-9907-4d40934e2845
-# ╠═98213623-eaec-4928-bfea-c0f0c4f04f90
+# ╟─5b76d562-5472-416b-b63c-1fef7c81cd5f
+# ╟─58ee4d37-9fa9-4f09-9d37-15d9f69d5ac2
+# ╟─98213623-eaec-4928-bfea-c0f0c4f04f90
 # ╠═5117a6c9-b090-4d85-9cbc-9500beb09f7e
 # ╟─c3000000-3353-11f1-90b2-21952756a80b
+# ╠═2b686c03-03df-41c4-a78f-71aae61ad5ff
 # ╠═c4000000-3353-11f1-90b2-21952756a80b
 # ╠═9410b8b8-10f0-460b-b46c-a7715cee1fe2
 # ╠═b6bc4920-7538-4df9-8295-4730db58be77
 # ╠═b03265a4-0776-41c9-846a-5e74b459814d
 # ╠═1d0cc054-5c38-46d5-9033-4872d265c0d8
 # ╠═c5000000-3353-11f1-90b2-21952756a80b
-# ╠═c7000000-3353-11f1-90b2-21952756a80b
-# ╠═ca74043d-78ae-47a1-a58a-a8d349313fda
-# ╠═f147f0f9-5e64-4413-9142-c0ec6d081506
+# ╠═c6000000-3353-11f1-90b2-21952756a80b
+# ╟─c7000000-3353-11f1-90b2-21952756a80b
+# ╟─ca74043d-78ae-47a1-a58a-a8d349313fda
+# ╟─f147f0f9-5e64-4413-9142-c0ec6d081506
 # ╠═bf81a25b-cbbe-4f61-8fe2-d558f13aeb5d
 # ╠═6fa4955d-c170-4e43-8cf6-0158cc08f60a
 # ╠═524f77c3-ebe2-4e7d-bd00-538c3de83cd0
