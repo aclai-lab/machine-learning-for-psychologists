@@ -56,7 +56,7 @@ md"""
 md"""
 # Data Loading
 
-In this section, we are going to load the raw data collected by Murri et al., as described in their work [Risk Prediction Models for Depression in Community-Dwelling Older Adults](https://www.ajgponline.org/article/S1064-7481(22)00435-3/abstract). 
+In this section, we are going to load the raw data TODO: write the fact that this was originally public, and then was refined by murri. refined by Murri et al., as described in their work [Risk Prediction Models for Depression in Community-Dwelling Older Adults](https://www.ajgponline.org/article/S1064-7481(22)00435-3/abstract). 
 
 The data was collected with the final goal of developing machine-learning predictors for late-life depression, including demographic characteristics, health-related factors, disability and individual depressive symptoms.
 
@@ -342,12 +342,6 @@ md"""
 # ╔═╡ a0e4c864-da20-4020-8f90-5f311ec1ba00
 dropped_variables = [ "mergeid", "hhid5", "hhid6", "hhid7", "mergeidp5", "mergeidp6", "mergeidp7", "coupleid5", "coupleid6", "coupleid7", "wave", "ph008d1", "ph054_", "ph080d1", "ph080d2", "ph080d3", "ph080d4", "ph080d5", "ph080d6", "ph080d7", "ph080d8", "ph080d9", "ph080d10", "ph080d11", "ph080d12", "ph080d13", "ph080d14", "ph080d15", "ph080d16", "ph080d17", "ph080d18", "ph080d19", "ph080d20", "ph080d21", "ph080d22", "ph080dot", "ph087d1", "ph087d2", "ph087d3", "ph087d4", "ph087d5", "ph087d6", "ph087d7", "ph088_", "ph089dno", "ph082_", "ph006d21", "ph049d14", "ph049d15", "ph050_", "ph051_", "ph059d1", "ph059d2", "ph059d3", "ph059d4", "ph059d5", "ph059d6", "ph059d7", "ph059d8", "ph059d9", "ph059d10", "ph059dno", "ph059dot", "ph690d1", "ph690d2", "ph690d3", "ph690d4", "ph745_", "ph009_1", "ph009_2", "ph009_3", "ph009_4", "ph009_5", "ph009_6", "ph009_10", "ph009_11", "ph009_12", "ph009_13", "ph009_14", "ph009_15", "ph009_16", "ph009_18", "ph009_19", "ph009_20", "ph009_other", "hc012_", "hc029_", "hc114_", "hc115_", "hc125_", "ph009_21"]
 
-# ╔═╡ e550be57-eab2-4064-b3fd-2b87c45cecbd
-df = select(df_raw, Not(dropped_variables))
-
-# ╔═╡ 6a09514b-b065-448e-bf78-420c0d6ce6a5
-CSV.write(CSV_PATH, df)
-
 # ╔═╡ 51f15ec3-d939-4416-9281-3b34b673fed6
 md"""
 !!! warning "Float64?"
@@ -355,6 +349,12 @@ md"""
 
 	What does this mean?
 """
+
+# ╔═╡ f5a540a6-4660-47cb-8f82-594d8d40dd1f
+df = select(df_raw, Not(dropped_variables))
+
+# ╔═╡ 6a09514b-b065-448e-bf78-420c0d6ce6a5
+CSV.write(CSV_PATH, df)
 
 # ╔═╡ 35c37143-19be-4504-a289-6404c794c617
 rename!(df, Dict(Symbol(k) => Symbol(v) for (k, v) in attribute_names))
@@ -760,6 +760,7 @@ mi_dict_sorted = sort(
 
 # ╔═╡ 28e85f18-0f54-459d-989c-6a971f25b15f
 begin
+	# TODO: remove euro_d because
 	println("Top $(top_k_print) mutual information:")
     for (col, ent) in reverse(mi_dict_sorted)[1:top_k_print]
         println("$col → $ent")
@@ -832,6 +833,7 @@ LocalResource("../images/standard_deviation_diagram.png")
 # 	z = (age_column .- mu) ./ sigma
 # end
 
+# TODO: move this before mutual information, and create two subtitles called univariate (multivariate) filtering
 begin
 	age_column = df_ent_filter[:, "age"]
 	z = zscore(age_column)
@@ -918,12 +920,12 @@ end
 # ╟─c5e327e5-a169-4f25-a09d-d0c4f6540d9d
 # ╠═6a09514b-b065-448e-bf78-420c0d6ce6a5
 # ╟─d3a4de4f-10c8-4e70-9104-b47364b99179
-# ╠═e550be57-eab2-4064-b3fd-2b87c45cecbd
 # ╟─7db28b02-a364-4bd0-84fe-be7c2d87e2cc
 # ╟─c88ab2ca-0a1a-4065-b1bb-10858e45b599
 # ╟─276b5cc2-b96c-4ddb-83dc-4ffb71978982
 # ╟─a0e4c864-da20-4020-8f90-5f311ec1ba00
 # ╟─51f15ec3-d939-4416-9281-3b34b673fed6
+# ╟─f5a540a6-4660-47cb-8f82-594d8d40dd1f
 # ╠═35c37143-19be-4504-a289-6404c794c617
 # ╠═e6228654-1fd3-433d-8cc3-0ebda46e90af
 # ╠═b7dc3954-e7e2-4064-b96b-0f18ac20fd45
@@ -975,7 +977,7 @@ end
 # ╠═9bd07589-0e70-401a-aabd-11772b32aa34
 # ╠═a6b4bfef-7486-493d-b4e4-e6717d34c942
 # ╟─62744abc-80f2-49aa-9a49-f371a4427194
-# ╠═cfc63ecc-56e9-4347-b9af-122b83a2f9a3
+# ╟─cfc63ecc-56e9-4347-b9af-122b83a2f9a3
 # ╟─35aa1f50-a2db-42c5-a080-45ec0d76ee33
 # ╟─2380ce25-6af6-4ed3-b528-d4fd55ef4abb
 # ╟─b4d57562-aab5-44ee-be52-3c106e0ce170
@@ -983,7 +985,7 @@ end
 # ╠═240443a3-42f2-4baf-b46b-621b97d5cd51
 # ╠═7e3de156-3690-4ec2-b138-093f239f4a32
 # ╠═2ea7a28e-3a74-4011-98f4-1c6a8cc639dd
-# ╠═28e85f18-0f54-459d-989c-6a971f25b15f
+# ╟─28e85f18-0f54-459d-989c-6a971f25b15f
 # ╠═0207e0c5-9a8a-4daf-942c-edc54aac352f
 # ╠═92a4c81a-8bd4-457a-86da-96be85c3fb89
 # ╠═b0b97508-39a1-4f91-9975-188bbae4cb1b
