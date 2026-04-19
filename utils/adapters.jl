@@ -78,6 +78,11 @@ function coerce_dataframe(X::AbstractDataFrame)
     return coerce(X, coerce_dict...)
 end
 
+"""
+Replace all the occurrences of [`SoleLogics.CONJUNCTION`](@ref) and 
+[`SoleLogics.DISJUNCTION`](@ref) in the [`SoleLogics.syntaxstring`](@ref) of 
+`lm`, with "and" and "or".
+"""
 function pretty_print(lm::LeftmostLinearForm)
     _st = syntaxstring(lm)
     return replace(_st, "∧"=>" and ", "∨" => " or ")
