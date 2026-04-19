@@ -83,8 +83,29 @@ Replace all the occurrences of [`SoleLogics.CONJUNCTION`](@ref) and
 [`SoleLogics.DISJUNCTION`](@ref) in the [`SoleLogics.syntaxstring`](@ref) of 
 `lm`, with "and" and "or".
 """
-function pretty_print(lm::LeftmostLinearForm)
-    _st = syntaxstring(lm)
-    return replace(_st, "∧"=>" and ", "∨" => " or ")
+function pretty_print(lm::Any)
+    left  = antecedent(lm)
+    right = syntaxstring(consequent(lm))
+    s = right
+    clean = replace(s, r"\e\[[0-9;]*m" => "")
+    clean = replace(clean, r"[^\w\s]" => "")
+    clean = strip(clean)   # ← rimuove \n e spazi iniziali/finali
+
+    result = match(r"\b(yes|no)\b", clean)
+    result === nothing ? nothing : result.match
+
+    _st = syntaxstring(left)
+    return ("IF " * replace(_st, "∧"=>" and ", "∨" => " or ") * " THEN classify " * clean)
 end
+
+
+
+function pretty_print_decision_set(ds)
+    HTML(join(
+    ["<p>" * pretty_print(r) * "</p>" for r in rules(ds)],
+    "\n"
+))
+end
+
+
 

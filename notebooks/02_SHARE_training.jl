@@ -50,6 +50,9 @@ begin
 	scitype_check_level=0;
 end
 
+# ╔═╡ bb5f8230-0777-442b-ac0e-5cec831a679b
+include(joinpath(INCLUDE_PATH, "adapters.jl"));
+
 # ╔═╡ 34bafc6f-ac2a-4cdb-b9c2-f766111251cb
 md"""
 # SHARE Training Pipeline
@@ -669,7 +672,7 @@ compressed_only_depth = SolePostHoc.Orca.compression(
 # ╔═╡ 7f731578-78c6-4c06-8cf8-a121fb7c0345
 compressed_full_dimensional = SolePostHoc.Orca.compression(
     sole_randomforest, :full_dimensional, X_train_mat_f, y_train_str;
-    population_size=3, n_generations=3
+    population_size=3, n_generations=4
 )
 
 # ╔═╡ 69a04f86-9c42-49b1-92e3-02aaed3fd97b
@@ -761,9 +764,17 @@ if start_intrees_extractor
     )
 end
 
+# ╔═╡ eb0c334f-2be9-45ca-b4d6-b747396d9a6d
+md"""
+# Rule explanation 
+"""
+
+# ╔═╡ b48b9625-22bf-4d64-bf88-5c6d923e196d
+pretty_print_decision_set(extracted_rules_w_lumen)
+
 # ╔═╡ Cell order:
 # ╟─34bafc6f-ac2a-4cdb-b9c2-f766111251cb
-# ╟─a1000000-3353-11f1-90b2-21952756a80b
+# ╠═a1000000-3353-11f1-90b2-21952756a80b
 # ╠═53c022c4-b0f3-42c0-94b0-7114bec855e7
 # ╠═9e1b6b33-65e7-4eb2-a26b-b622546a2d75
 # ╟─d7df4cf0-e938-471a-8284-e741588cf830
@@ -841,19 +852,22 @@ end
 # ╠═8692525e-a66d-4413-8722-80b9f1bf436a
 # ╟─9319d70b-e1ae-493f-92bf-42745840411a
 # ╠═60dda6b7-7efd-4f90-b96f-a20cce9441bc
-# ╠═7008b6f7-806c-4a13-8010-8f8d1537b258
+# ╟─7008b6f7-806c-4a13-8010-8f8d1537b258
 # ╟─cdaf88f6-d1a6-4a77-a9f6-c68eca79d364
 # ╟─ae5db3d3-e961-435b-af6e-5a6ac12f03df
 # ╠═9955fa39-3aae-4cf8-81e6-a2e3ce7d5615
 # ╠═b7b72708-4f7a-4a5b-a898-b0487b4ef44e
 # ╠═7f731578-78c6-4c06-8cf8-a121fb7c0345
-# ╠═69a04f86-9c42-49b1-92e3-02aaed3fd97b
-# ╠═c4aa241b-d4da-4b08-9143-9ff2754564cc
+# ╟─69a04f86-9c42-49b1-92e3-02aaed3fd97b
+# ╟─c4aa241b-d4da-4b08-9143-9ff2754564cc
 # ╠═fa4f5fc2-aa91-484a-9544-f09a36857db1
 # ╠═7ebaad1b-0f94-4649-8630-f5890bff2fed
-# ╠═3f87b4ca-a1ca-4622-8ed6-edc18480dc63
+# ╟─3f87b4ca-a1ca-4622-8ed6-edc18480dc63
 # ╠═1d3eb7ab-3765-485e-bfdd-0ca236004e75
 # ╠═8d28f8b0-1165-4ed2-bd3e-a09741363e83
-# ╠═f93ecd9e-3cad-4afd-a6e3-fbabf9f347a5
+# ╟─f93ecd9e-3cad-4afd-a6e3-fbabf9f347a5
 # ╠═bfdb2bfd-8c23-4f04-b60e-b60ff5a927fd
 # ╠═866f833d-dfc5-43a0-8dd5-a58679115f2b
+# ╟─eb0c334f-2be9-45ca-b4d6-b747396d9a6d
+# ╠═bb5f8230-0777-442b-ac0e-5cec831a679b
+# ╠═b48b9625-22bf-4d64-bf88-5c6d923e196d
