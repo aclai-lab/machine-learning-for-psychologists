@@ -603,11 +603,48 @@ begin
 	trepan_extractor = TREPANRuleExtractor()
 end
 
+# ╔═╡ 7008b6f7-806c-4a13-8010-8f8d1537b258
+begin 
+	# FEATURES
+	X_train_mat = Matrix(X_train)
+	X_test_mat  = Matrix(X_test)
+	
+	# LABELS
+	y_train_vec = Vector(y_train[:, 1])
+	y_test_vec  = Vector(y_test[:, 1])
+
+
+    X_train_mat_f = Matrix{Float64}(X_train)
+    X_test_mat_f  = Matrix{Float64}(X_test)
+		
+    y_train_str = string.(y_train_vec)
+    y_test_str  = string.(y_test_vec)
+	y_train_str = string.(y_train_vec)
+end
+
 # ╔═╡ cdaf88f6-d1a6-4a77-a9f6-c68eca79d364
 md"""
 # Model compression
 TODO: with orca
 """
+
+# ╔═╡ 9955fa39-3aae-4cf8-81e6-a2e3ce7d5615
+compressed_size_depth = SolePostHoc.Orca.compression(
+    sole_randomforest, :size_depth, X_train_mat_f, y_train_str;
+    population_size=3, n_generations=3
+)
+
+# ╔═╡ b7b72708-4f7a-4a5b-a898-b0487b4ef44e
+compressed_only_depth = SolePostHoc.Orca.compression(
+    sole_randomforest, :depth, X_train_mat_f, y_train_str;
+    population_size=3, n_generations=3
+)
+
+# ╔═╡ 7f731578-78c6-4c06-8cf8-a121fb7c0345
+compressed_full_dimensional = SolePostHoc.Orca.compression(
+    sole_randomforest, :full_dimensional, X_train_mat_f, y_train_str;
+    population_size=3, n_generations=3
+)
 
 # ╔═╡ 69a04f86-9c42-49b1-92e3-02aaed3fd97b
 md"""
@@ -618,17 +655,6 @@ md"""
 md"""
 prepariamo i dati:
 """
-
-# ╔═╡ 7008b6f7-806c-4a13-8010-8f8d1537b258
-begin 
-	# FEATURES
-	X_train_mat = Matrix(X_train)
-	X_test_mat  = Matrix(X_test)
-	
-	# LABELS
-	y_train_vec = Vector(y_train[:, 1])
-	y_test_vec  = Vector(y_test[:, 1])
-end
 
 # ╔═╡ d3f9cebb-2e31-4232-8577-66dcab631a19
 md"""
@@ -769,10 +795,13 @@ end
 # ╠═8692525e-a66d-4413-8722-80b9f1bf436a
 # ╟─9319d70b-e1ae-493f-92bf-42745840411a
 # ╠═60dda6b7-7efd-4f90-b96f-a20cce9441bc
+# ╠═7008b6f7-806c-4a13-8010-8f8d1537b258
 # ╠═cdaf88f6-d1a6-4a77-a9f6-c68eca79d364
+# ╠═b7b72708-4f7a-4a5b-a898-b0487b4ef44e
+# ╠═9955fa39-3aae-4cf8-81e6-a2e3ce7d5615
+# ╠═7f731578-78c6-4c06-8cf8-a121fb7c0345
 # ╠═69a04f86-9c42-49b1-92e3-02aaed3fd97b
 # ╠═3cb3502b-4846-480e-acad-52ccfcac0e84
-# ╠═7008b6f7-806c-4a13-8010-8f8d1537b258
 # ╠═d3f9cebb-2e31-4232-8577-66dcab631a19
 # ╟─c4aa241b-d4da-4b08-9143-9ff2754564cc
 # ╠═fa4f5fc2-aa91-484a-9544-f09a36857db1
