@@ -1,3 +1,4 @@
+using SoleLogics
 using StatsBase
 
 """
@@ -76,3 +77,9 @@ function coerce_dataframe(X::AbstractDataFrame)
 
     return coerce(X, coerce_dict...)
 end
+
+function pretty_print(lm::LeftmostLinearForm)
+    _st = syntaxstring(lm)
+    return replace(_st, "∧"=>" and ", "∨" => " or ")
+end
+
