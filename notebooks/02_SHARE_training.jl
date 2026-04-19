@@ -625,7 +625,33 @@ end
 # ╔═╡ cdaf88f6-d1a6-4a77-a9f6-c68eca79d364
 md"""
 # Model compression
-TODO: with orca
+
+Once a model has been trained, it can be quite large and complex — especially in the case of a random forest, which is an ensemble of many trees. While this complexity contributes to predictive accuracy, it can make the model hard to interpret and expensive to deploy.
+
+!!! info "What is model compression?"
+	**Model compression** is the process of producing a new, smaller symbolic model that approximates the behavior of the original one as closely as possible, while being significantly simpler in structure.
+
+	Here, we leverage **Orca** -- Optimized aRbitrary-ensemble Compression Algorithm -- (available through `SolePostHoc`), a compression algorithm based on evolutionary optimization. Orca searches for a compact decision tree that best mimics the predictions of the original forest.
+
+!!! tip "The three complexity dimensions"
+	Orca optimizes over one or more *complexity dimensions*:
+
+	- **size**: the total number of nodes in the tree — a direct measure of structural complexity;
+	- **depth**: the maximum length of any root-to-leaf path — controls how many conditions must be checked to reach a prediction;
+	- **dimensionality**: the number of distinct features used across all splits — a measure of how many variables the model actually relies on.
+
+	These three dimensions can be optimized **individually**, **two at a time**, or **all together**.
+"""
+
+# ╔═╡ ae5db3d3-e961-435b-af6e-5a6ac12f03df
+md"""
+The cells below showcase three compression strategies:
+
+- `:size_depth` — minimize both size and depth simultaneously;
+
+- `:depth` — minimize depth only, preserving more features;
+
+- `:full_dimensional` — apply compression across all three dimensions at once.
 """
 
 # ╔═╡ 9955fa39-3aae-4cf8-81e6-a2e3ce7d5615
@@ -649,16 +675,36 @@ compressed_full_dimensional = SolePostHoc.Orca.compression(
 # ╔═╡ 69a04f86-9c42-49b1-92e3-02aaed3fd97b
 md"""
 # Model explanation
-"""
 
-# ╔═╡ 3cb3502b-4846-480e-acad-52ccfcac0e84
-md"""
-prepariamo i dati:
-"""
+A trained model — especially a random forest — is often a *black box*: it makes predictions, but the reasoning behind each decision is hidden in hundreds of trees and thousands of splits.
 
-# ╔═╡ d3f9cebb-2e31-4232-8577-66dcab631a19
-md"""
-Proviamo alcuni dei nostri numerosi estrattori
+	**Rule extraction** produces a human-readable *decision set* from a trained model: a collection of simple if-then rules of the form:
+
+	> IF condition₁ AND condition₂ AND … THEN prediction
+
+	The key insight is that **regardless of the underlying algorithm**, the output is always a *decision set*, a uniform format that is easy to inspect, validate, and communicate to domain experts and stakeholders.
+
+!!! success "Available extractors in SolePostHoc"
+	| Extractor | Strategy |
+	|-----------|----------|
+	| `InTreesRuleExtractor` | Enumerates paths directly from the trees in the forest |
+	| `LumenRuleExtractor` | Optimizes rules for coverage and compactness |
+	| `BATreesRuleExtractor` | Builds an approximating single tree from the forest |
+	| `REFNERuleExtractor` | Refines rules by focusing on misclassified instances |
+	| `TREPANRuleExtractor` | Queries the forest as an oracle to induce a new tree |
+
+!!! warning "Two calling interfaces"
+	Each alghoritm can be invoked in **two ways**:
+
+	1. **Algorithm-native interface** — pass the model data directly (e.g., a DataFrame and a label vector), leveraging the algorithm's own internal format:
+	   ```julia
+	   SolePosthoc.lumen(sole_randomforest; minimization_scheme=:abc)
+	   ```
+
+	2. **Unified `extractrules` interface** — a common call signature that abstracts away algorithmic differences and always returns a standardized *decision set*:
+	   ```julia
+	   RuleExtraction.extractrules(lumen_extractor, sole_randomforest; minimization_scheme=:abc)
+	   ```
 """
 
 # ╔═╡ c4aa241b-d4da-4b08-9143-9ff2754564cc
@@ -796,19 +842,18 @@ end
 # ╟─9319d70b-e1ae-493f-92bf-42745840411a
 # ╠═60dda6b7-7efd-4f90-b96f-a20cce9441bc
 # ╠═7008b6f7-806c-4a13-8010-8f8d1537b258
-# ╠═cdaf88f6-d1a6-4a77-a9f6-c68eca79d364
-# ╠═b7b72708-4f7a-4a5b-a898-b0487b4ef44e
+# ╟─cdaf88f6-d1a6-4a77-a9f6-c68eca79d364
+# ╟─ae5db3d3-e961-435b-af6e-5a6ac12f03df
 # ╠═9955fa39-3aae-4cf8-81e6-a2e3ce7d5615
+# ╠═b7b72708-4f7a-4a5b-a898-b0487b4ef44e
 # ╠═7f731578-78c6-4c06-8cf8-a121fb7c0345
 # ╠═69a04f86-9c42-49b1-92e3-02aaed3fd97b
-# ╠═3cb3502b-4846-480e-acad-52ccfcac0e84
-# ╠═d3f9cebb-2e31-4232-8577-66dcab631a19
-# ╟─c4aa241b-d4da-4b08-9143-9ff2754564cc
+# ╠═c4aa241b-d4da-4b08-9143-9ff2754564cc
 # ╠═fa4f5fc2-aa91-484a-9544-f09a36857db1
 # ╠═7ebaad1b-0f94-4649-8630-f5890bff2fed
-# ╟─3f87b4ca-a1ca-4622-8ed6-edc18480dc63
+# ╠═3f87b4ca-a1ca-4622-8ed6-edc18480dc63
 # ╠═1d3eb7ab-3765-485e-bfdd-0ca236004e75
 # ╠═8d28f8b0-1165-4ed2-bd3e-a09741363e83
-# ╟─f93ecd9e-3cad-4afd-a6e3-fbabf9f347a5
-# ╟─bfdb2bfd-8c23-4f04-b60e-b60ff5a927fd
+# ╠═f93ecd9e-3cad-4afd-a6e3-fbabf9f347a5
+# ╠═bfdb2bfd-8c23-4f04-b60e-b60ff5a927fd
 # ╠═866f833d-dfc5-43a0-8dd5-a58679115f2b
