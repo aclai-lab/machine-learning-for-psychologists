@@ -594,21 +594,37 @@ Now that we trained three variations of decision trees from our data, we are int
 
 # ╔═╡ 7008b6f7-806c-4a13-8010-8f8d1537b258
 begin 
-	# FEATURES
+	# from now onwards, it is better to interpret our DataFrames as Matrixes and Vectors
 	X_train_mat = Matrix(X_train);
 	X_test_mat  = Matrix(X_test);
-	
-	# LABELS
-	y_train_vec = Vector(y_train[:, 1]);
-	y_test_vec  = Vector(y_test[:, 1]);
-
 
     X_train_mat_f = Matrix{Float64}(X_train);
     X_test_mat_f  = Matrix{Float64}(X_test);
 		
-    y_train_str = string.(y_train_vec);
-    y_test_str  = string.(y_test_vec);
-	y_train_str = string.(y_train_vec);
+    y_train_str = string.(y_train[:, 1]);
+    y_test_str  = string.(y_test[:, 1]);
+
+	# begin changed from
+	#
+	## # FEATURES
+	## X_train_mat = Matrix(X_train);
+	## X_test_mat  = Matrix(X_test);
+	## 
+	## # LABELS
+	## y_train_vec = Vector(y_train[:, 1]);
+	## y_test_vec  = Vector(y_test[:, 1]);
+	##
+	##
+    ## X_train_mat_f = Matrix{Float64}(X_train);
+    ## X_test_mat_f  = Matrix{Float64}(X_test);
+	## 	
+    ## y_train_str = string.(y_train_vec);
+    ## y_test_str  = string.(y_test_vec);
+	## y_train_str = string.(y_train_vec);
+	#
+	# end changed from 
+	# 
+	# but this diff is not the reason while Orca with :size_depth returns an empty ensemble
 end
 
 # ╔═╡ cdaf88f6-d1a6-4a77-a9f6-c68eca79d364
@@ -756,6 +772,12 @@ catch e
 end
 
 
+# ╔═╡ bbfdc551-476d-4d28-b676-f5477fc8c12b
+md"""
+# Challenging the LLMs
+In the cells below, we repeat the same prompting exercise  following section, we are going to ask for clarification to ChatGPT, tackling many aspects we studied during the lesson.
+"""
+
 # ╔═╡ Cell order:
 # ╟─34bafc6f-ac2a-4cdb-b9c2-f766111251cb
 # ╠═a1000000-3353-11f1-90b2-21952756a80b
@@ -854,3 +876,4 @@ end
 # ╠═866f833d-dfc5-43a0-8dd5-a58679115f2b
 # ╟─eb0c334f-2be9-45ca-b4d6-b747396d9a6d
 # ╠═b48b9625-22bf-4d64-bf88-5c6d923e196d
+# ╠═bbfdc551-476d-4d28-b676-f5477fc8c12b
