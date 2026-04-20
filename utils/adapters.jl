@@ -11,7 +11,7 @@ function maybe_bin(x; nbins=10)
     end
 
     ux = unique(x)
-    
+
     # if data is a float collection but there are just a few unique values,
     # treat it as a categorical
     if length(ux) ≤ nbins
@@ -84,7 +84,7 @@ Replace all the occurrences of [`SoleLogics.CONJUNCTION`](@ref) and
 `lm`, with "and" and "or".
 """
 function pretty_print(lm::Any)
-    left  = antecedent(lm)
+    left = antecedent(lm)
     right = syntaxstring(consequent(lm))
     s = right
     clean = replace(s, r"\e\[[0-9;]*m" => "")
@@ -95,16 +95,16 @@ function pretty_print(lm::Any)
     result === nothing ? nothing : result.match
 
     _st = syntaxstring(left)
-    return ("IF " * replace(_st, "∧"=>" and ", "∨" => " or ") * " THEN classify " * clean)
+    return ("IF " * replace(_st, "∧" => " and ", "∨" => " or ") * " THEN classify " * clean)
 end
 
 
 
 function pretty_print_decision_set(ds)
     HTML(join(
-    ["<p>" * pretty_print(r) * "</p>" for r in rules(ds)],
-    "\n"
-))
+        ["<p>" * pretty_print(r) * "</p>" for r in rules(ds)],
+        "\n"
+    ))
 end
 
 
