@@ -464,13 +464,13 @@ md"""
 !!! info "Exercise"
 	Try to investigate the following attributes. Which one seems to be "informative"? Which are garbage, and why? Which columns are intuitively useless?
 
-	- residence_rural_urban
-	- low_income 
-	- number_of_children
-	- number_of_grandchildren
-	- political_community_org
-	- hearing
-	- ethnicity
+	- `residence_rural_urban`
+	- `low_income` 
+	- `number_of_children`
+	- `number_of_grandchildren`
+	- `political_community_org`
+	- `hearing`
+	- `ethnicity`
 """
 
 # ╔═╡ 3094d269-cd3d-46b6-9f32-cb99e19f3cc9
@@ -715,7 +715,6 @@ LocalResource("../images/standard_deviation_diagram.png")
 # 	z = (age_column .- mu) ./ sigma
 # end
 
-# TODO: move this before mutual information, and create two subtitles called univariate (multivariate) filtering
 begin
 	age_column = df_freq_filter[:, "age"]
 	z = zscore(age_column)
@@ -923,6 +922,13 @@ function save_files()
     serialize(SERIALIZE_PATH, df_mi_filter)
 end
 
+# ╔═╡ 5489432a-68e4-49b1-aa70-d2ee410d5dd1
+md"""
+!!! tips "Ready to go!"
+	Press the slider below to finally save your dataset.
+	We strongly suggest pressing the slider again a few seconds later, to avoid saving a new dataset every time this notebook is updated.
+"""
+
 # ╔═╡ c709b580-e26a-42be-a5c1-bb76833efd65
 @bind enable_saving Switch(; default=false)
 
@@ -930,6 +936,81 @@ end
 if enable_saving == true
 	save_files()
 end
+
+# ╔═╡ 4a5dd797-5fb3-4074-9c7e-02c8db096777
+md"""
+# A final exercise about leveraging LLMs
+
+### First of all, an important definition: Epistemia
+*Epistemia* is a neologism describing the illusion of having knowledge created by interacting with generative AI, where **fluent**, **coherent**, and **convincing** text makes information seem reliable even when it may **lack a real factual foundation**.
+
+Epistemia is about people confusing the appearance of understanding produced by large language models with verified knowledge.
+
+In other words, epistemia is when the appearance of knowledge replaces genuine epistemic reliability.
+"""
+
+# ╔═╡ 660e2581-0636-4162-9477-855dcd6030b9
+md"""
+!!! info "A first reflection"
+	1. Before the advent of large generative models, what was the most similar phenomenon with respect to epistemia?
+
+	2. What is the *crucial* aspect that changed, from the idea of your previous answer to nowadays?
+
+	3. How can we defend ourselves from epistemia?
+"""
+
+# ╔═╡ 33024b81-50ac-45e4-8168-0a842c4d522d
+md"""
+### Now, let's challenge LLMs
+In the following section, we are going to ask for clarification to ChatGPT, tackling many aspects we studied during the lesson.
+"""
+
+# ╔═╡ c3af66c9-0998-4952-9e5b-91076763a922
+md"""
+### Prompt #1
+```
+I want to analyse the SHARE European dataset.
+Tell me the meaning of these variable names.
+
+"mergeid", "age_int", "hhsize", "dn042_", "dn503_", "dn014_", "dn034_", "iv009_", "hh022_", "hh025_", "hh017e", "sp002_", "sp008_", "ch001_", "ch021_", "ep005_", "co007_", "ac035d1", "ac035d4", "ac035d5", "ac035d7", "ac035d8", "ac035d9", "ac035d10", "ac035dno", "ac012_", "ac014_", "ac015_", "ac016_", "ac017_", "ac018_", "ac019_", "ac020_", "ac021_", "ac022_", "ac023_", "ac024_", "ac025_", "it003_", "euro1", "euro2", "euro3", "euro4", "euro5", "euro6", "euro7", "euro8", "euro9", "euro10", "euro11", "euro12", "bmi2", "phactiv", "hhid5", "mergeidp5", "coupleid5", "country", "language", "ph003_", "ph004_", "ph005_", "ph006d1", "ph006d2", "ph006d3", "ph006d4", "ph006d5", "ph006d6", "ph006d10", "ph006d11", "ph006d12", "ph006d13", "ph006d14", "ph006d15", "ph006d16", "ph006d18", "ph006d19", "ph006d20", "ph006dno", "ph006dot", "ph008d1", "ph008d2", "ph008d3", "ph008d4", "ph008d5", "ph008d6", "ph008d7", "ph008d8", "ph008d9", "ph008d10", "ph008d11", "ph008d12", "ph008d13", "ph008d14", "ph008d15", "ph008d16", "ph008d17", "ph008d18", "ph008d19", "ph008d20", "ph008d21", "ph008d22", "ph008dot", "ph009_1", "ph009_2", "ph009_3", "ph009_4", "ph009_5", "ph009_6", "ph009_10", "ph009_11", "ph009_12", "ph009_13", "ph009_14", "ph009_15", "ph009_16", "ph009_18", "ph009_19", "ph009_20", "ph009_other", "ph011d1", "ph011d2", "ph011d3", "ph011d4", "ph011d6", "ph011d7", "ph011d8", "ph011d9", "ph011d10", "ph011d11", "ph011d13", "ph011d14", "ph011d15", "ph011dno", "ph011dot", "ph012_", "ph013_", "ph041_", "ph043_", "ph044_", "ph045_", "ph046_", "ph048d1", "ph048d2", "ph048d3", "ph048d4", "ph048d5", "ph048d6", "ph048d7", "ph048d8", "ph048d9", "ph048d10", "ph048dno", "ph049d1", "ph049d2", "ph049d3", "ph049d4", "ph049d5", "ph049d6", "ph049d7", "ph049d8", "ph049d9", "ph049d10", "ph049d11", "ph049d12", "ph049d13", "ph049dno", "ph054_", "ph061_", "ph065_", "ph066_", "ph071_1", "ph071_2", "ph071_3", "ph071_4", "ph072_1", "ph072_2", "ph072_3", "ph072_4", "ph073_1", "ph073_2", "ph073_3", "ph073_4", "ph074_1", "ph074_2", "ph074_3", "ph074_4", "ph075_1", "ph075_2", "ph075_3", "ph075_4", "ph076_1", "ph076_2", "ph076_3", "ph076_4", "ph077_1", "ph077_2", "ph077_3", "ph077_4", "ph080d1", "ph080d2", "ph080d3", "ph080d4", "ph080d5", "ph080d6", "ph080d7", "ph080d8", "ph080d9", "ph080d10", "ph080d11", "ph080d12", "ph080d13", "ph080d14", "ph080d15", "ph080d16", "ph080d17", "ph080d18", "ph080d19", "ph080d20", "ph080d21", "ph080d22", "ph080dot", "ph084_", "ph085_", "ph087d1", "ph087d2", "ph087d3", "ph087d4", "ph087d5", "ph087d6", "ph087d7", "ph088_", "ph089d1", "ph089d2", "ph089d3", "ph089d4", "ph089dno", "ph090_", "ph091_", "ph092_", "ph094_", "ph095_", "mh037_", "hc012_", "hc029_", "hc114_", "hc115_", "hc125_", "br015_", "br016_", "isced1997_r", "wave", "initial_euro_d", "euro_d", "hhid6", "mergeidp6", "coupleid6", "ph006d21", "ph009_21", "ph049d14", "ph049d15", "ph050_", "ph051_", "ph059d1", "ph059d2", "ph059d3", "ph059d4", "ph059d5", "ph059d6", "ph059d7", "ph059d8", "ph059d9", "ph059d10", "ph059dno", "ph059dot", "ph082_", "ph690d1", "ph690d2", "ph690d3", "ph690d4", "hhid7", "mergeidp7", "coupleid7", "ph745_"
+```
+"""
+
+# ╔═╡ 8833e136-07dd-42ff-b5cc-cb4cff87c194
+LocalResource("../images/prompt-01-01.png")
+
+# ╔═╡ 1741894c-87e8-40c0-bc33-5086e5823a59
+md"""
+Actually, in both for [Wave 5](https://www.share-datadocutool.org/control-construct-schemes/view/99) and [Wave 6](https://www.share-datadocutool.org/control-construct-schemes/view/145), `hh022_` is the question *I really feel part of this area. Would you say you strongly agree, agree, disagree or strongly disagree?* 
+"""
+
+# ╔═╡ 725e38d1-8f98-4a34-8ae8-fc134b2e490f
+md"""
+---
+"""
+
+# ╔═╡ e1ad8296-dd83-4ce7-9e25-779e81d06727
+md"""
+### Prompt #2
+I am writing a data analysis pipeline. I have a lot of missing values and I want to remove them! Show me how to do it in Julia
+"""
+
+# ╔═╡ 3ed03a33-1a2d-4f38-ad69-e3db2f5294bb
+LocalResource("../images/prompt-01-02.png")
+
+# ╔═╡ 2f0c0e80-7ed1-444a-9387-bb289901acf6
+md"""
+---
+"""
+
+# ╔═╡ 2a5776a9-0732-4c0b-8227-8e42e664b7f4
+md"""
+### Prompt #3
+I am doing a data analysis in Julia and I want to know more about monovariate filter. Recently I heard about a method based on a metric called "entropy", I want to use that.
+"""
+
+# ╔═╡ 44d4af15-b64b-4b8c-8e7f-f72b33f3c53b
+LocalResource("../images/prompt-01-03.png")
 
 # ╔═╡ Cell order:
 # ╟─2807db23-4cbb-4542-9de1-26610595c6bd
@@ -1027,5 +1108,18 @@ end
 # ╠═f59ae421-e01c-43f1-9e15-6805f96aa746
 # ╠═b391021e-719e-412f-b13d-637fc5bcbe0c
 # ╠═639e7cb7-fb43-4a26-9692-29a668f5d430
+# ╟─5489432a-68e4-49b1-aa70-d2ee410d5dd1
 # ╠═c709b580-e26a-42be-a5c1-bb76833efd65
 # ╠═9cac84da-b466-47ec-bf66-1ab648755c9f
+# ╟─4a5dd797-5fb3-4074-9c7e-02c8db096777
+# ╟─660e2581-0636-4162-9477-855dcd6030b9
+# ╟─33024b81-50ac-45e4-8168-0a842c4d522d
+# ╟─c3af66c9-0998-4952-9e5b-91076763a922
+# ╠═8833e136-07dd-42ff-b5cc-cb4cff87c194
+# ╟─1741894c-87e8-40c0-bc33-5086e5823a59
+# ╟─725e38d1-8f98-4a34-8ae8-fc134b2e490f
+# ╟─e1ad8296-dd83-4ce7-9e25-779e81d06727
+# ╟─3ed03a33-1a2d-4f38-ad69-e3db2f5294bb
+# ╟─2f0c0e80-7ed1-444a-9387-bb289901acf6
+# ╟─2a5776a9-0732-4c0b-8227-8e42e664b7f4
+# ╟─44d4af15-b64b-4b8c-8e7f-f72b33f3c53b
