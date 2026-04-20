@@ -3,8 +3,6 @@ This repository contains all the material for the machine learning course taught
 
 During these sessions, you will learn how to write a complete machine learning pipeline for analysing the typical psychologists data leveraging the [Sole.jl](https://github.com/aclai-lab/Sole.jl) framework.
 
-The material is provided in the form of `notebooks`, which are a scientific standard for sharing and reproducing scientific computing scripts.
-
 ## Setup
 
 ### Julia programming language
@@ -20,9 +18,11 @@ This will install the latest stable version of Julia.
 
 ### VS Code (optional)
 
-In this laboratory, we are going to write and execute code from a graphical interface.
-However, in general, it might be useful to install a text editor such as Visual Studio Code.
-You can do it from [its official website](https://code.visualstudio.com/). 
+We are going to write and execute code from a graphical interface, generated directly from Julia (see the previous step).
+
+In general, however, it might come in handy to install a professional text editor such as Visual Studio Code.
+
+You can do it by following the download button from [its official website](https://code.visualstudio.com/). 
 
 Once installed, open the `Extensions` view (`Ctrl+Shift+X`), then enter the keyword `julia` and install the extension maintained by the `julialang` organization.
 
