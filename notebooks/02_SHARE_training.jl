@@ -50,9 +50,6 @@ begin
 	scitype_check_level=0;
 end
 
-# ╔═╡ bb5f8230-0777-442b-ac0e-5cec831a679b
-include(joinpath(INCLUDE_PATH, "adapters.jl"));
-
 # ╔═╡ 34bafc6f-ac2a-4cdb-b9c2-f766111251cb
 md"""
 # SHARE Training Pipeline
@@ -590,74 +587,54 @@ end
 
 # ╔═╡ 9319d70b-e1ae-493f-92bf-42745840411a
 md"""
----
-# TODO: move in the next notebook
+# PostHoc Analysis
 
-The code from here onwards can be refined in another notebook.
+Now that we trained three variations of decision trees from our data, we are interested in *compress their representation* and *extract the essential rules* from them.
 """
-
-# ╔═╡ 60dda6b7-7efd-4f90-b96f-a20cce9441bc
-# Actually, this is solved in the next notebook
-begin
-	intrees_extractor = InTreesRuleExtractor(min_coverage=1.0)
-	lumen_extractor = LumenRuleExtractor()
-	batrees_extractor = BATreesRuleExtractor()
-	refne_extractor = REFNERuleExtractor()
-	trepan_extractor = TREPANRuleExtractor()
-end
 
 # ╔═╡ 7008b6f7-806c-4a13-8010-8f8d1537b258
 begin 
 	# FEATURES
-	X_train_mat = Matrix(X_train)
-	X_test_mat  = Matrix(X_test)
+	X_train_mat = Matrix(X_train);
+	X_test_mat  = Matrix(X_test);
 	
 	# LABELS
-	y_train_vec = Vector(y_train[:, 1])
-	y_test_vec  = Vector(y_test[:, 1])
+	y_train_vec = Vector(y_train[:, 1]);
+	y_test_vec  = Vector(y_test[:, 1]);
 
 
-    X_train_mat_f = Matrix{Float64}(X_train)
-    X_test_mat_f  = Matrix{Float64}(X_test)
+    X_train_mat_f = Matrix{Float64}(X_train);
+    X_test_mat_f  = Matrix{Float64}(X_test);
 		
-    y_train_str = string.(y_train_vec)
-    y_test_str  = string.(y_test_vec)
-	y_train_str = string.(y_train_vec)
+    y_train_str = string.(y_train_vec);
+    y_test_str  = string.(y_test_vec);
+	y_train_str = string.(y_train_vec);
 end
 
 # ╔═╡ cdaf88f6-d1a6-4a77-a9f6-c68eca79d364
 md"""
 # Model compression
 
-Once a model has been trained, it can be quite large and complex — especially in the case of a random forest, which is an ensemble of many trees. While this complexity contributes to predictive accuracy, it can make the model hard to interpret and expensive to deploy.
+Once a model has been trained, it can be quite large and complex, especially in the case of a random forest, which is an ensemble of many trees.
 
-!!! info "What is model compression?"
-	**Model compression** is the process of producing a new, smaller symbolic model that approximates the behavior of the original one as closely as possible, while being significantly simpler in structure.
+While this complexity contributes to predictive accuracy, it can make the model hard to interpret and computationally expensive to consult in practice.
 
-	Here, we leverage **Orca** -- Optimized aRbitrary-ensemble Compression Algorithm -- (available through `SolePostHoc`), a compression algorithm based on evolutionary optimization. Orca searches for a compact decision tree that best mimics the predictions of the original forest.
+To mitigate the problem, we can exploit **model compression** for producing new, smaller models that approximate the behavior of the original one as closely as possible, while being significantly simpler in structure.
+
+In particular, here we leverage the novel **Orca** (Optimized aRbitrary-ensemble Compression Algorithm), which is based on [evolutionary optimization](https://en.wikipedia.org/wiki/Evolutionary_algorithm). 
 
 !!! tip "The three complexity dimensions"
-	Orca optimizes over one or more *complexity dimensions*:
+	Orca optimizes over three *complexity dimensions*:
 
-	- **size**: the total number of nodes in the tree — a direct measure of structural complexity;
-	- **depth**: the maximum length of any root-to-leaf path — controls how many conditions must be checked to reach a prediction;
-	- **dimensionality**: the number of distinct features used across all splits — a measure of how many variables the model actually relies on.
+	- size: the total number of nodes in a tree;
+	- depth: the maximum number of conditions that must be checked to reach a prediction;
+	- dimensionality: the number of unique variables leveraged across all splits.
 
-	These three dimensions can be optimized **individually**, **two at a time**, or **all together**.
-"""
-
-# ╔═╡ ae5db3d3-e961-435b-af6e-5a6ac12f03df
-md"""
-The cells below showcase three compression strategies:
-
-- `:size_depth` — minimize both size and depth simultaneously;
-
-- `:depth` — minimize depth only, preserving more features;
-
-- `:full_dimensional` — apply compression across all three dimensions at once.
+	These three dimensions can be optimized both individually and in combinations.
 """
 
 # ╔═╡ 9955fa39-3aae-4cf8-81e6-a2e3ce7d5615
+# with :size_depth we ask to minimize both size and depth simultaneously 
 compressed_size_depth = SolePostHoc.Orca.compression(
     sole_randomforest, :size_depth, X_train_mat_f, y_train_str;
     population_size=3, n_generations=3
@@ -670,6 +647,7 @@ compressed_only_depth = SolePostHoc.Orca.compression(
 )
 
 # ╔═╡ 7f731578-78c6-4c06-8cf8-a121fb7c0345
+# with :full_dimensional we take into account all the three complexity dimensions
 compressed_full_dimensional = SolePostHoc.Orca.compression(
     sole_randomforest, :full_dimensional, X_train_mat_f, y_train_str;
     population_size=3, n_generations=4
@@ -679,36 +657,35 @@ compressed_full_dimensional = SolePostHoc.Orca.compression(
 md"""
 # Model explanation
 
-A trained model — especially a random forest — is often a *black box*: it makes predictions, but the reasoning behind each decision is hidden in hundreds of trees and thousands of splits.
+Although a model like a random forest can potentially be interpretable (i.e., easy to explain, discuss and understand), it often reveals itself as a *black box*, which is very hard for humans to read.
 
-	**Rule extraction** produces a human-readable *decision set* from a trained model: a collection of simple if-then rules of the form:
+Our goal, here, is to produce human-readable and highly descriptive sets of decisions which are characteristics of the whole forest.
 
-	> IF condition₁ AND condition₂ AND … THEN prediction
-
-	The key insight is that **regardless of the underlying algorithm**, the output is always a *decision set*, a uniform format that is easy to inspect, validate, and communicate to domain experts and stakeholders.
-
-!!! success "Available extractors in SolePostHoc"
+!!! success "Rule extractors in SolePostHoc"
 	| Extractor | Strategy |
 	|-----------|----------|
 	| `InTreesRuleExtractor` | Enumerates paths directly from the trees in the forest |
-	| `LumenRuleExtractor` | Optimizes rules for coverage and compactness |
+	| `LumenRuleExtractor` | Optimizes rules for *coverage* and *compactness* |
 	| `BATreesRuleExtractor` | Builds an approximating single tree from the forest |
 	| `REFNERuleExtractor` | Refines rules by focusing on misclassified instances |
 	| `TREPANRuleExtractor` | Queries the forest as an oracle to induce a new tree |
 
-!!! warning "Two calling interfaces"
-	Each alghoritm can be invoked in **two ways**:
 
-	1. **Algorithm-native interface** — pass the model data directly (e.g., a DataFrame and a label vector), leveraging the algorithm's own internal format:
-	   ```julia
-	   SolePosthoc.lumen(sole_randomforest; minimization_scheme=:abc)
-	   ```
-
-	2. **Unified `extractrules` interface** — a common call signature that abstracts away algorithmic differences and always returns a standardized *decision set*:
-	   ```julia
-	   RuleExtraction.extractrules(lumen_extractor, sole_randomforest; minimization_scheme=:abc)
-	   ```
 """
+
+# ╔═╡ 5723b1e8-b594-4893-b71d-3df41fe49393
+md"""
+These are some of the rule extractors available via Sole.jl.
+"""
+
+# ╔═╡ 0946aa01-90cf-4747-915b-f6806995a36b
+begin
+	intrees_extractor = InTreesRuleExtractor(min_coverage=1.0)
+	lumen_extractor = LumenRuleExtractor()
+	batrees_extractor = BATreesRuleExtractor()
+	refne_extractor = REFNERuleExtractor()
+	trepan_extractor = TREPANRuleExtractor()
+end
 
 # ╔═╡ c4aa241b-d4da-4b08-9143-9ff2754564cc
 md"""
@@ -770,7 +747,14 @@ md"""
 """
 
 # ╔═╡ b48b9625-22bf-4d64-bf88-5c6d923e196d
-pretty_print_decision_set(extracted_rules_w_lumen)
+try
+	pretty_print_decision_set(extracted_rules_w_lumen)
+catch e
+	if e isa UndefVarError
+		print("You first need to execute the cell 'Start the 💡 Lumen extractor 💡'")
+	end
+end
+
 
 # ╔═╡ Cell order:
 # ╟─34bafc6f-ac2a-4cdb-b9c2-f766111251cb
@@ -851,14 +835,14 @@ pretty_print_decision_set(extracted_rules_w_lumen)
 # ╠═d8b150a0-261a-47fc-8ad5-c071f57c2077
 # ╠═8692525e-a66d-4413-8722-80b9f1bf436a
 # ╟─9319d70b-e1ae-493f-92bf-42745840411a
-# ╠═60dda6b7-7efd-4f90-b96f-a20cce9441bc
-# ╟─7008b6f7-806c-4a13-8010-8f8d1537b258
+# ╠═7008b6f7-806c-4a13-8010-8f8d1537b258
 # ╟─cdaf88f6-d1a6-4a77-a9f6-c68eca79d364
-# ╟─ae5db3d3-e961-435b-af6e-5a6ac12f03df
 # ╠═9955fa39-3aae-4cf8-81e6-a2e3ce7d5615
 # ╠═b7b72708-4f7a-4a5b-a898-b0487b4ef44e
 # ╠═7f731578-78c6-4c06-8cf8-a121fb7c0345
-# ╟─69a04f86-9c42-49b1-92e3-02aaed3fd97b
+# ╠═69a04f86-9c42-49b1-92e3-02aaed3fd97b
+# ╟─5723b1e8-b594-4893-b71d-3df41fe49393
+# ╠═0946aa01-90cf-4747-915b-f6806995a36b
 # ╟─c4aa241b-d4da-4b08-9143-9ff2754564cc
 # ╠═fa4f5fc2-aa91-484a-9544-f09a36857db1
 # ╠═7ebaad1b-0f94-4649-8630-f5890bff2fed
@@ -869,5 +853,4 @@ pretty_print_decision_set(extracted_rules_w_lumen)
 # ╠═bfdb2bfd-8c23-4f04-b60e-b60ff5a927fd
 # ╠═866f833d-dfc5-43a0-8dd5-a58679115f2b
 # ╟─eb0c334f-2be9-45ca-b4d6-b747396d9a6d
-# ╠═bb5f8230-0777-442b-ac0e-5cec831a679b
 # ╠═b48b9625-22bf-4d64-bf88-5c6d923e196d
