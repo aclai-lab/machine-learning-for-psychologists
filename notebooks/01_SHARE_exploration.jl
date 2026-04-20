@@ -961,7 +961,7 @@ md"""
 
 # ╔═╡ 33024b81-50ac-45e4-8168-0a842c4d522d
 md"""
-### Now, let's challenge LLMs
+### Now, let us challenge the LLMs
 In the following section, we are going to ask for clarification to ChatGPT, tackling many aspects we studied during the lesson.
 """
 
