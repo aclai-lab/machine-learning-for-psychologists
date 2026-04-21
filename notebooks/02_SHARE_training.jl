@@ -775,7 +775,13 @@ end
 # ╔═╡ bbfdc551-476d-4d28-b676-f5477fc8c12b
 md"""
 # Challenging the LLMs
-In the cells below, we repeat the same prompting exercise  following section, we are going to ask for clarification to ChatGPT, tackling many aspects we studied during the lesson.
+In the cells below, we repeat the same prompting exercise as in the first notebook, asking ChatGPT to clarify some hypothetical doubts related to this lesson.
+"""
+
+# ╔═╡ af48c01f-a98d-43c2-9a14-d4c780f86590
+md"""
+### Prompt #1
+
 """
 
 # ╔═╡ Cell order:
@@ -877,3 +883,4 @@ In the cells below, we repeat the same prompting exercise  following section, we
 # ╟─eb0c334f-2be9-45ca-b4d6-b747396d9a6d
 # ╠═b48b9625-22bf-4d64-bf88-5c6d923e196d
 # ╠═bbfdc551-476d-4d28-b676-f5477fc8c12b
+# ╠═af48c01f-a98d-43c2-9a14-d4c780f86590
