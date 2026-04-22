@@ -153,29 +153,26 @@ begin
     schema(X_coerced_raw);
 end
 
-# ╔═╡ 66ec88be-2014-40a1-a221-e8fbed52c3b7
+# ╔═╡ 3f185c7c-cbc8-4d33-be2c-57d72784c51e
 md"""
-!!! tips "From Multiclass to One-hot encoding"
-	Multiclass labels are typically stored as categorical values, and the model must be able to interpret them correctly as distinct classes rather than arbitrary text or numbers.
+# One-hot encoding
 
-	**It is by no means certain that a model can naturally handle Multiclass**.
+Multiclass labels are typically stored as categorical values, and the model must be able to interpret them correctly as distinct classes rather than arbitrary text or numbers.
 
-	A safe, general solution is... **one-hot encoding**!
+It is by no means certain that a model can naturally handle Multiclass.
 
-	It is a way of representing each category as a separate binary feature, where only one feature is "active" (i.e., set to 1) for a given observation and all others are 0. 
+A safe, general solution is... one-hot encoding!
 
-	With one-hot encoding...
-	- we avoid introducing a false notion of ordering between the values of an attribute (as in the case of leveraging Multiclass types);
-	- it is not mandatory for the trained model to be designed for handling categorical attributes.
+It is a way of representing each category as a separate binary feature, where only one feature is "active" (i.e., set to 1) for a given observation and all others are 0.
+
+With one-hot encoding:
+- we avoid introducing a false notion of ordering between the values of an attribute (as in the case of leveraging Multiclass types);
+- it is not mandatory for the trained model to be designed for handling categorical attributes.
+
 """
 
 # ╔═╡ d0b073f2-2bba-433d-afc4-c5cc085ada62
 LocalResource("../images/onehot_encoding.png")
-
-# ╔═╡ cdcbdbae-6867-453f-bbae-c7490a2c3df2
-md"""
-In a few cells, we are going to play with a particular kind of machine learning model called *decision tree*; let us see if the implementation we are going to leverage supports the Multiclass scientific type by design.
-"""
 
 # ╔═╡ 67a333d7-4aa7-45bd-ad05-957fc87102f2
 OneHotEncoder = @load OneHotEncoder pkg=MLJTransforms
@@ -193,7 +190,7 @@ X = MLJBase.transform(ohe_mach_fitted, X_coerced_raw);
 size(X)
 
 # ╔═╡ a7000000-3353-11f1-90b2-21952756a80b
-X_ninstances, X_nattributes = size(X)
+X_ninstances, X_nattr+ibutes = size(X)
 
 # ╔═╡ b0000000-3353-11f1-90b2-21952756a80b
 begin
@@ -210,6 +207,12 @@ begin
 		rng=RNG_SEED
     )
 end
+
+# ╔═╡ 0e734fdc-969b-46c6-a9c9-fca950afd09a
+size(X_train)
+
+# ╔═╡ 54e24bc2-3fe6-4c6b-acf2-96de70e2736b
+
 
 # ╔═╡ 6abe7cf4-231c-4f75-839f-6b80891d3088
 md"""
@@ -807,9 +810,8 @@ LocalResource("../images/prompt-02-02.png")
 # ╟─d4e2b317-92b9-4f59-b63d-91d14d3af828
 # ╟─2ac0e4ca-7e77-47b8-b1b9-9e1ed0d1c426
 # ╠═a6000000-3353-11f1-90b2-21952756a80b
-# ╟─66ec88be-2014-40a1-a221-e8fbed52c3b7
+# ╟─3f185c7c-cbc8-4d33-be2c-57d72784c51e
 # ╠═d0b073f2-2bba-433d-afc4-c5cc085ada62
-# ╟─cdcbdbae-6867-453f-bbae-c7490a2c3df2
 # ╠═67a333d7-4aa7-45bd-ad05-957fc87102f2
 # ╠═51278f4e-d554-48f6-a63f-14f3e78fee17
 # ╠═cf3b8afb-f32d-42f1-aa7e-7dfc0ec0ef17
@@ -817,6 +819,8 @@ LocalResource("../images/prompt-02-02.png")
 # ╠═565c7e32-c824-41e8-a8ea-4d1e4a638c86
 # ╠═a7000000-3353-11f1-90b2-21952756a80b
 # ╠═b0000000-3353-11f1-90b2-21952756a80b
+# ╠═0e734fdc-969b-46c6-a9c9-fca950afd09a
+# ╠═54e24bc2-3fe6-4c6b-acf2-96de70e2736b
 # ╟─6abe7cf4-231c-4f75-839f-6b80891d3088
 # ╠═c70c1204-60a1-4ecf-b0a1-8a60938686ff
 # ╠═d9bac238-70b3-43a0-95c5-99fb5ae96b92
