@@ -604,9 +604,12 @@ md"""
 """
 
 # ╔═╡ 26537045-ee8b-496f-82dc-628221894934
-df_typed = filter_df(df_euro_clean, :cast;
+df_typed = filter_df(
+	df_euro_clean, 
+	:cast;
 	cast_threshold=23,
-	ignore_cols=["euro_d"])
+	ignore_cols=["euro_d"]
+)
 
 # ╔═╡ 4ec2c869-8b09-4b25-9bbe-101d632c096f
 numerical_attribute_names = []
@@ -614,13 +617,14 @@ numerical_attribute_names = []
 # ╔═╡ 8d913135-5ee6-407a-aedb-c55b68b3b70d
 categorical_attribute_names = []
 
-# ╔═╡ 4f327386-a495-48d0-9a11-9f769b5c7bec
-eltype(df_typed[:, "ethnicity"]) 
-
-# ╔═╡ 340c97fe-837f-4563-a70e-1f04f9d02818
+# ╔═╡ c2dc1f3a-e416-4304-b523-bac1e43d26f4
 for name in names(df_typed)
     name == "euro_d" && continue
+
+	# isolate the "core" type of df_typed at the column name,
+	# filtering out the "Missing"
     T = nonmissingtype(eltype(df_typed[!, name]))
+	
     if T <: CategoricalValue
         push!(categorical_attribute_names, name)
         println("Categorical: $name")
@@ -632,15 +636,6 @@ end
 
 # ╔═╡ 9ea155da-c7a1-46be-afdb-7bbf1bee5020
 @bind numerical_impute_strategy Select([mode, mean, median])
-
-# ╔═╡ 5bce1728-42b6-4d11-8e67-bdcbb261f758
-for col in numerical_attribute_names
-    println(col)
-    T = nonmissingtype(eltype(df_typed[!, col]))
-    T <: CategoricalValue && continue
-    val = numerical_impute_strategy(skipmissing(df_typed[!, col]))
-    df_typed[!, col] = coalesce.(df_typed[!, col], val)
-end
 
 # ╔═╡ 97f45a63-5148-439f-b4bf-10d371dc357a
 md"""
@@ -667,6 +662,8 @@ end
 md"""
 # Further filterings
 
+### Monovariate approach: skewed distributions
+
 We proceed to remove the columns having very skewed categorical distributions, with at least a `frequency_threshold` percentage of identical values.
 """
 
@@ -689,7 +686,7 @@ md"""
 
 # ╔═╡ 401f93f6-9253-43ba-8957-83f214fde4f0
 md"""
-### Monovariate approach
+### Monovariate approach: z-score
 """
 
 # ╔═╡ 57a07a80-0aea-44c2-9d53-2f2f9d8c201b
@@ -1079,10 +1076,8 @@ LocalResource("../images/prompt-01-03.png")
 # ╠═26537045-ee8b-496f-82dc-628221894934
 # ╠═4ec2c869-8b09-4b25-9bbe-101d632c096f
 # ╠═8d913135-5ee6-407a-aedb-c55b68b3b70d
-# ╠═4f327386-a495-48d0-9a11-9f769b5c7bec
-# ╠═340c97fe-837f-4563-a70e-1f04f9d02818
+# ╠═c2dc1f3a-e416-4304-b523-bac1e43d26f4
 # ╠═9ea155da-c7a1-46be-afdb-7bbf1bee5020
-# ╠═5bce1728-42b6-4d11-8e67-bdcbb261f758
 # ╟─97f45a63-5148-439f-b4bf-10d371dc357a
 # ╠═583f660f-e955-4ef0-bf04-555b1e294b7e
 # ╠═fb5b262b-c8f3-44ed-8c3d-96fb20ad227a
@@ -1092,7 +1087,7 @@ LocalResource("../images/prompt-01-03.png")
 # ╠═9bd07589-0e70-401a-aabd-11772b32aa34
 # ╠═a6b4bfef-7486-493d-b4e4-e6717d34c942
 # ╟─62744abc-80f2-49aa-9a49-f371a4427194
-# ╠═401f93f6-9253-43ba-8957-83f214fde4f0
+# ╟─401f93f6-9253-43ba-8957-83f214fde4f0
 # ╟─57a07a80-0aea-44c2-9d53-2f2f9d8c201b
 # ╠═9d51ce42-752c-46f2-87bc-c064b952e770
 # ╠═94eadd14-2445-4ecc-a678-e8fc981674d8
