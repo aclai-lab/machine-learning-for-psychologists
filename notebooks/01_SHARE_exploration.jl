@@ -519,33 +519,26 @@ md"""
 	Beware of negative values when dealing with `euro_d_X` attributes; -1 encodes *don't know* while -2 encodes *I prefer not to answer*. 
 """
 
-# ╔═╡ 9c17d796-1b74-4fcf-99cb-02975bbd9a83
-df_euro = filter_df(df_no_missing, 
-	:property_rows;
-	max_occurrences = 1,
-	property        = x -> x < 0,
-	colnames        = euro_d_attributes,
-)
-
 # ╔═╡ 590c1a09-4aac-46cc-9236-258593d16103
 md"""
-To really explore the informative content of `euro_d`, we can granularly consider the 12 contributions composing it (`euro_score_total`) and relate the resulting value with a certain `target` value.
+!!! tips "Getting insights"
+	Plotting each attribute against the `euro_d` label can give us some insights about the data!
 """
 
 # ╔═╡ f087682f-2c34-4c5c-b098-936fd282371d
-@bind target_attribute Select(names(df_euro))
+@bind target_attribute Select(names(df_no_missing))
 
 # ╔═╡ e452edcd-8ac8-4bb7-a96a-26b2ce8d6058
 euro_score_total = [
 	sum([r[attribute] for attribute in euro_d_attributes])
-	for r in eachrow(df_euro)
+	for r in eachrow(df_no_missing)
 ]
 
 # ╔═╡ 98bd33fc-526e-45c7-bbb6-ad67abe05838
 scatter(
 	euro_score_total .+ 0.12 .* randn(length(euro_score_total)),
-	df_euro[:, target_attribute];
-	group=df_euro[:, "euro_d"],
+	df_no_missing[:, target_attribute];
+	group=df_no_missing[:, "euro_d"],
 	markerstrokewidth=0,
 	markersize=1,
 	xlabel="Euro-d depression at follow up",
@@ -558,11 +551,11 @@ Finally, we try to visualize the ratio between depressed and non-depressed patie
 """
 
 # ╔═╡ fe25627e-3fbf-462c-a0aa-82d0179cd9bb
-@bind df_euro_colname Select(filter(n -> n != "euro_d", names(df_euro)))
+@bind df_euro_colname Select(filter(n -> n != "euro_d", names(df_no_missing)))
 
 # ╔═╡ 6243c7c3-8d9f-40a7-9276-bf80c92bd242
 begin
-	df_euro_temp = dropmissing(df_euro, [df_euro_colname, "euro_d"])
+	df_euro_temp = dropmissing(df_no_missing, [df_euro_colname, "euro_d"])
 	col_data = collect(df_euro_temp[:, df_euro_colname])
 
 	p1 = histogram(col_data; group=df_euro_temp[:, "euro_d"], xlabel=df_euro_colname, title="Histogram")
@@ -578,7 +571,7 @@ Probably, the best idea here is to just discard them.
 """
 
 # ╔═╡ f5fb9a1d-de7c-4a60-a3b3-6200386d44f5
-df_euro_clean = select(df_euro, Not(euro_d_attributes))
+df_euro_clean = select(df_no_missing, Not(euro_d_attributes))
 
 # ╔═╡ 73b63a56-8d36-4995-8157-1838ab882aaa
 size(df_euro_clean)
@@ -1056,7 +1049,6 @@ LocalResource("../images/prompt-01-03.png")
 # ╟─147b3de2-5a64-4bfc-adc8-af8c9b5d25b8
 # ╟─3575f98f-37b4-4504-aec0-a6e546a7fb7e
 # ╟─23fb94fc-1909-43a0-9151-c9b0874ea87c
-# ╠═9c17d796-1b74-4fcf-99cb-02975bbd9a83
 # ╟─590c1a09-4aac-46cc-9236-258593d16103
 # ╠═f087682f-2c34-4c5c-b098-936fd282371d
 # ╠═e452edcd-8ac8-4bb7-a96a-26b2ce8d6058
