@@ -60,7 +60,7 @@ MLJ is probably the most famous package in Julia for supporting machine learning
 
 Sole is a framework specialized for the treatment of *symbolic* models. Very briefly, it enables the learning of original models, a deep inspection and optimization of the latter, and even dealing with unstructured (i.e., non tabular) data.
 
-It is very common to see "double-connected channels" between MLJ and other packages of the Julia community! As we shall later, Sole is no exception, and the two frameworks can be used in synergy.
+It is very common to see "doubly-connected channels" between MLJ and other packages of the Julia community! As we shall later, Sole is no exception, and the two frameworks can be used in synergy.
 """
 
 # ╔═╡ 53c022c4-b0f3-42c0-94b0-7114bec855e7
