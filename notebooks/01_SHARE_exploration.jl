@@ -620,8 +620,8 @@ eltype(df_typed[:, "ethnicity"])
 # ╔═╡ 340c97fe-837f-4563-a70e-1f04f9d02818
 for name in names(df_typed)
     name == "euro_d" && continue
-    T = eltype(df_typed[!, name])
-    if T <: Union{Missing, CategoricalValue}
+    T = nonmissingtype(eltype(df_typed[!, name]))
+    if T <: CategoricalValue
         push!(categorical_attribute_names, name)
         println("Categorical: $name")
     else
@@ -635,9 +635,11 @@ end
 
 # ╔═╡ 5bce1728-42b6-4d11-8e67-bdcbb261f758
 for col in numerical_attribute_names
-	println(col)
-	val = numerical_impute_strategy(df_typed[!, col])
-	df_typed[!, col] = coalesce.(df_typed[!, col], val)
+    println(col)
+    T = nonmissingtype(eltype(df_typed[!, col]))
+    T <: CategoricalValue && continue
+    val = numerical_impute_strategy(skipmissing(df_typed[!, col]))
+    df_typed[!, col] = coalesce.(df_typed[!, col], val)
 end
 
 # ╔═╡ 97f45a63-5148-439f-b4bf-10d371dc357a
