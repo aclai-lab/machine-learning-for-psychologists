@@ -158,7 +158,7 @@ attribute_names = Dict(
 	# Section 2: Mental Health
 	
 	# depression symptoms (EURO-D standard)
-    "euro1" => "depression_symptom_depression",
+    "euro1" => "depression_symptom_depressive_mood",
     "euro2" => "depression_symptom_pessimism",
     "euro3" => "depression_symptom_suicidality",
     "euro4" => "depression_symptom_guilt",
@@ -515,9 +515,22 @@ euro_d_attributes = [
 
 # ╔═╡ 23fb94fc-1909-43a0-9151-c9b0874ea87c
 md"""
-!!! warning "A note on negative euro_d scores"
+!!! warning "A note on negative scores"
 	Beware of negative values when dealing with `euro_d_X` attributes; -1 encodes *don't know* while -2 encodes *I prefer not to answer*. 
 """
+
+# ╔═╡ e452edcd-8ac8-4bb7-a96a-26b2ce8d6058
+euro_score_total = [
+	# we are summing together *only* the positive scores
+	sum([r[attribute] > 0 for attribute in euro_d_attributes])
+	for r in eachrow(df_no_missing)
+]
+
+# ╔═╡ 05a3e05b-89ec-4798-bc91-4715d50d114a
+# TODO: add the check about initial_euro_d
+# for score in euro_score_total
+# 	if score >= 4
+# end
 
 # ╔═╡ 590c1a09-4aac-46cc-9236-258593d16103
 md"""
@@ -527,12 +540,6 @@ md"""
 
 # ╔═╡ f087682f-2c34-4c5c-b098-936fd282371d
 @bind target_attribute Select(names(df_no_missing))
-
-# ╔═╡ e452edcd-8ac8-4bb7-a96a-26b2ce8d6058
-euro_score_total = [
-	sum([r[attribute] for attribute in euro_d_attributes])
-	for r in eachrow(df_no_missing)
-]
 
 # ╔═╡ 98bd33fc-526e-45c7-bbb6-ad67abe05838
 scatter(
@@ -551,7 +558,7 @@ Finally, we try to visualize the ratio between depressed and non-depressed patie
 """
 
 # ╔═╡ fe25627e-3fbf-462c-a0aa-82d0179cd9bb
-@bind df_euro_colname Select(filter(n -> n != "euro_d", names(df_no_missing)))
+@bind df_euro_colname Select(["age", "weight", "height"])
 
 # ╔═╡ 6243c7c3-8d9f-40a7-9276-bf80c92bd242
 begin
@@ -1049,9 +1056,10 @@ LocalResource("../images/prompt-01-03.png")
 # ╟─147b3de2-5a64-4bfc-adc8-af8c9b5d25b8
 # ╟─3575f98f-37b4-4504-aec0-a6e546a7fb7e
 # ╟─23fb94fc-1909-43a0-9151-c9b0874ea87c
+# ╠═e452edcd-8ac8-4bb7-a96a-26b2ce8d6058
+# ╠═05a3e05b-89ec-4798-bc91-4715d50d114a
 # ╟─590c1a09-4aac-46cc-9236-258593d16103
 # ╠═f087682f-2c34-4c5c-b098-936fd282371d
-# ╠═e452edcd-8ac8-4bb7-a96a-26b2ce8d6058
 # ╠═98bd33fc-526e-45c7-bbb6-ad67abe05838
 # ╟─660c38a6-2ad0-4e37-a083-d08b3c1d6413
 # ╠═fe25627e-3fbf-462c-a0aa-82d0179cd9bb
