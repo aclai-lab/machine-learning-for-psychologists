@@ -756,7 +756,7 @@ In many disciplines, such as computer science, electronics, statistics and data 
 
 # ╔═╡ 35aa1f50-a2db-42c5-a080-45ec0d76ee33
 md"""
-!!! warning "Exercise"
+!!! warning "Example"
 	We want to compute the entropy of the following distribution ``X = \{a,a,a,b,b,b,b,b,c,c\}``
 
 	``H(X) = -(\frac{3}{10}log_2(\frac{3}{10}) + \frac{5}{10}log_2(\frac{5}{10}) + \frac{2}{10}log_2(\frac{2}{10}))=``
@@ -775,8 +775,8 @@ md"""
 # ╔═╡ 47b09493-06a9-48b0-aa52-5de51aca9e76
 hint("""
 **Entropy = how surprised you are by the data.**
-- **Entropy = 0** → all elements are the same `{a,a,a,a,a}`. You always know what comes next. No surprise.
-- **Entropy = max** → all values appear the same number of times `{a,b,c,a,b,c}`. You never know what comes next. Maximum surprise.
+- **Entropy = 0** → all elements are the same `{a,a,a,a,a}`. You always know what comes next. No caos.
+- **Entropy = max** → all values appear the same number of times `{a,b,c,a,b,c}`. You never know what comes next. Maximum caos.
 The max entropy formula is:
 \$\$H_{max} = \\log_2(n)\$\$
 where **n = number of different values** in your data.
@@ -799,7 +799,7 @@ In our scenario, the mutual information gives as an important insight about how 
 
 # ╔═╡ 85a27e1d-4635-46c7-bd14-89a6e6f088f8
 md"""
-!!! warning "Exercise"
+!!! warning "Example"
 	We want to compute the mutual information between ``X = \{a,a,a,b,b,b,b,b,c,c\}`` and ``Y = \{0, 0, 1, 1, 1, 1, 0, 1, 0, 0\}``.
 
 	``H(Y) = -(\frac{4}{10}log_2(\frac{4}{10}) + \frac{6}{10}log_2(\frac{6}{10}))= 0.97``
@@ -820,11 +820,11 @@ md"""
 # ╔═╡ 240443a3-42f2-4baf-b46b-621b97d5cd51
 mi_dict = Dict(
 	name => mutual_information(
-		df_no_outliers[:, name], 
-		df_no_outliers[:, "euro_d"];
+		df_no_outliers[:, name],     # want evaluate ith-variable 
+		df_no_outliers[:, "euro_d"]; # Given 
 	) 
-	for name in names(df_no_outliers)
-	if name != "euro_d"
+	for name in names(df_no_outliers) # I
+	if name != "euro_d"               # II 
 )
 
 # ╔═╡ 7e3de156-3690-4ec2-b138-093f239f4a32
