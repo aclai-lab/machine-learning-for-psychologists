@@ -134,11 +134,11 @@ attribute_names = Dict(
 	"isced1997_r" => "education_level",
 
 	# social contacts
-    "sp002_" => "social_support_received",
-    "sp008_" => "social_support_given",
+    "sp002_" => "help_from_others",
+    "sp008_" => "given_help_last_twelve_months",
     "ch001_" => "number_of_children",
     "ch021_" => "number_of_grandchildren",
-    "dn034_" => "number_of_siblings",
+    "dn034_" => "had_siblings",
     "ep005_" => "occupation_employment",
 
 	# activities
@@ -153,7 +153,7 @@ attribute_names = Dict(
     "it003_" => "computer_skills",
     "hh022_" => "perception_of_neighbourhood",
     "hh025_" => "people_who_would_help",
-    "hh017e" => "low_income",
+    "hh017e" => "income_received_by_hh_members",
 
 	# Section 2: Mental Health
 	
@@ -170,8 +170,8 @@ attribute_names = Dict(
     "euro10" => "depression_symptom_concentration",
     "euro11" => "depression_symptom_enjoyment",
     "euro12" => "depression_symptom_tearfulness",
-    "ph011d10" => "psychotropic_drug_use",
-    "ph006d16" => "cognitive_problems_diagnosed",
+    "ph011d10" => "drugs_for_anxiety_or_depression",
+    "ph006d16" => "dementia_diagnosed",
 
 	# quality of life
     "ac012_" => "life_satisfaction",
@@ -298,24 +298,24 @@ attribute_names = Dict(
     "ph084_" => "pain",
     "ph089d4" => "fatigue_frailty",
     "ph085_" => "pain_level",
-    "ph008d11" => "trouble_sleeping",
-    "ph008d12" => "trouble_falling_asleep",
-    "ph008d13" => "trouble_waking_during_night",
-    "ph008d14" => "trouble_waking_too_early",
-    "ph008d15" => "trouble_feeling_restored",
-    "ph008d16" => "trouble_sleeping_difficulty",
-    "ph008d17" => "trouble_sleeping_tired",
-    "ph008d18" => "trouble_sleeping_energy",
-    "ph008d19" => "trouble_sleeping_problem",
-    "ph008d20" => "trouble_sleeping_restless",
-    "ph008d21" => "trouble_sleeping_insomnia",
-    "ph008d22" => "trouble_sleeping_other",
-    "ph008dot" => "trouble_sleeping_none",
+    "ph008d11" => "cancer_pancreas",
+    "ph008d12" => "cancer_kidney",
+    "ph008d13" => "cancer_prostate",
+    "ph008d14" => "cancer_testicle",
+    "ph008d15" => "cancer_ovary",
+    "ph008d16" => "cancer_cervix",
+    "ph008d17" => "cancer_endometrium",
+    "ph008d18" => "cancer_colon",
+    "ph008d19" => "cancer_bladder",
+    "ph008d20" => "cancer_skin",
+    "ph008d21" => "cancer_lymphoma",
+    "ph008d22" => "cancer_leukaemia",
+    "ph008dot" => "cancer_other_organ",
     "ph006d1" => "heart_disease",
     "ph006d2" => "hypertension",
     "ph006d4" => "vascular_disease",
     "ph006d10" => "told_cancer",
-    "ph006d11" => "ulcer",
+    "ph006d11" => "duodenal_ulcer",
     "ph006d13" => "cataracts",
     "ph006d14" => "femoral_fracture",
     "ph006d15" => "other_fracture",
@@ -341,9 +341,8 @@ attribute_names = Dict(
 	# habits and lifestyle
     "br015_" => "vigorous_physical_activity",
     "br016_" => "moderate_physical_activity",
-    "phactiv" => "no_physical_activity",
+    "phactiv" => "physical_inactivity",
 )
-
 
 # ╔═╡ 276b5cc2-b96c-4ddb-83dc-4ffb71978982
 md"""
@@ -756,7 +755,7 @@ In many disciplines, such as computer science, electronics, statistics and data 
 
 # ╔═╡ 35aa1f50-a2db-42c5-a080-45ec0d76ee33
 md"""
-!!! warning "Example"
+!!! warning "Exercise"
 	We want to compute the entropy of the following distribution ``X = \{a,a,a,b,b,b,b,b,c,c\}``
 
 	``H(X) = -(\frac{3}{10}log_2(\frac{3}{10}) + \frac{5}{10}log_2(\frac{5}{10}) + \frac{2}{10}log_2(\frac{2}{10}))=``
@@ -775,8 +774,8 @@ md"""
 # ╔═╡ 47b09493-06a9-48b0-aa52-5de51aca9e76
 hint("""
 **Entropy = how surprised you are by the data.**
-- **Entropy = 0** → all elements are the same `{a,a,a,a,a}`. You always know what comes next. No caos.
-- **Entropy = max** → all values appear the same number of times `{a,b,c,a,b,c}`. You never know what comes next. Maximum caos.
+- **Entropy = 0** → all elements are the same `{a,a,a,a,a}`. You always know what comes next. No surprise.
+- **Entropy = max** → all values appear the same number of times `{a,b,c,a,b,c}`. You never know what comes next. Maximum surprise.
 The max entropy formula is:
 \$\$H_{max} = \\log_2(n)\$\$
 where **n = number of different values** in your data.
@@ -799,7 +798,7 @@ In our scenario, the mutual information gives as an important insight about how 
 
 # ╔═╡ 85a27e1d-4635-46c7-bd14-89a6e6f088f8
 md"""
-!!! warning "Example"
+!!! warning "Exercise"
 	We want to compute the mutual information between ``X = \{a,a,a,b,b,b,b,b,c,c\}`` and ``Y = \{0, 0, 1, 1, 1, 1, 0, 1, 0, 0\}``.
 
 	``H(Y) = -(\frac{4}{10}log_2(\frac{4}{10}) + \frac{6}{10}log_2(\frac{6}{10}))= 0.97``
@@ -820,11 +819,11 @@ md"""
 # ╔═╡ 240443a3-42f2-4baf-b46b-621b97d5cd51
 mi_dict = Dict(
 	name => mutual_information(
-		df_no_outliers[:, name],     # want evaluate ith-variable 
-		df_no_outliers[:, "euro_d"]; # Given 
+		df_no_outliers[:, name], 
+		df_no_outliers[:, "euro_d"];
 	) 
-	for name in names(df_no_outliers) # I
-	if name != "euro_d"               # II 
+	for name in names(df_no_outliers)
+	if name != "euro_d"
 )
 
 # ╔═╡ 7e3de156-3690-4ec2-b138-093f239f4a32
