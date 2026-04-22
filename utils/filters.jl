@@ -135,20 +135,6 @@ function filter_df(df::AbstractDataFrame,
             # keep out[!, col] as a Float64?
         end
     end
-    #
-    #     T = eltype(x)
-    #
-    #     if T <: Union{AbstractString,Bool,Missing}
-    #         out[!, col] = categorical(x)
-    #     elseif T <: Union{Real,Missing}
-    #         if length(unique(skipmissing(x))) <= cast_threshold
-    #             out[!, col] = categorical(x)
-    #         else
-    #             out[!, col] = passmissing(Float64).(x)
-    #         end
-    #     else
-    #         out[!, col] = categorical(string.(x))
-    #     end
-    # end
+
     return out
 end
