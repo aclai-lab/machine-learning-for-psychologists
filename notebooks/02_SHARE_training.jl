@@ -67,13 +67,6 @@ It is very common to see "double-connected channels" between MLJ and other packa
 # code to use to guarantee reproducibility when leveraging randomness
 RNG_SEED = 1605
 
-# ╔═╡ 9e1b6b33-65e7-4eb2-a26b-b622546a2d75
-md"""
-Artifacts are Julia "containers of data" that are not Julia packages.
-
-SolePostHoc will leverage external programs for supporting advanced data compression functionalities.
-"""
-
 # ╔═╡ d7df4cf0-e938-471a-8284-e741588cf830
 md"""
 # Data Loading
@@ -603,28 +596,6 @@ begin
 		
     y_train_str = string.(y_train[:, 1]);
     y_test_str  = string.(y_test[:, 1]);
-
-	# begin changed from
-	#
-	## # FEATURES
-	## X_train_mat = Matrix(X_train);
-	## X_test_mat  = Matrix(X_test);
-	## 
-	## # LABELS
-	## y_train_vec = Vector(y_train[:, 1]);
-	## y_test_vec  = Vector(y_test[:, 1]);
-	##
-	##
-    ## X_train_mat_f = Matrix{Float64}(X_train);
-    ## X_test_mat_f  = Matrix{Float64}(X_test);
-	## 	
-    ## y_train_str = string.(y_train_vec);
-    ## y_test_str  = string.(y_test_vec);
-	## y_train_str = string.(y_train_vec);
-	#
-	# end changed from 
-	# 
-	# but this diff is not the reason while Orca with :size_depth returns an empty ensemble
 end
 
 # ╔═╡ cdaf88f6-d1a6-4a77-a9f6-c68eca79d364
@@ -782,13 +753,47 @@ In the cells below, we repeat the same prompting exercise as in the first notebo
 md"""
 ### Prompt #1
 
+This is extremely naïve.
+
+```
+Consider this variables, coming from a dataset I am studying: Suggest me a machine learning training pipeline for a dataset having these header: age_int,hhsize,dn042_,dn503_,dn014_,dn034_,iv009_,hh022_,hh025_,hh017e,sp002_,sp008_,ch001_,ch021_,ep005_,co007_,ac035d1,ac035d4,ac035d5,ac035d7,ac035d8,ac035d9,ac035d10,ac035dno,ac012_,ac014_,ac015_,ac016_,ac017_,ac018_,ac019_,ac020_,ac021_,ac022_,ac023_,ac024_,ac025_,it003_,euro1,euro2,euro3,euro4,euro5,euro6,euro7,euro8,euro9,euro10,euro11,euro12,bmi2,phactiv,country,language,ph003_,ph004_,ph005_,ph006d1,ph006d2,ph006d3,ph006d4,ph006d5,ph006d6,ph006d10,ph006d11,ph006d12,ph006d13,ph006d14,ph006d15,ph006d16,ph006d18,ph006d19,ph006d20,ph006dno,ph006dot,ph008d2,ph008d3,ph008d4,ph008d5,ph008d6,ph008d7,ph008d8,ph008d9,ph008d10,ph008d11,ph008d12,ph008d13,ph008d14,ph008d15,ph008d16,ph008d17,ph008d18,ph008d19,ph008d20,ph008d21,ph008d22,ph008dot,ph011d1,ph011d2,ph011d3,ph011d4,ph011d6,ph011d7,ph011d8,ph011d9,ph011d10,ph011d11,ph011d13,ph011d14,ph011d15,ph011dno,ph011dot,ph012_,ph013_,ph041_,ph043_,ph044_,ph045_,ph046_,ph048d1,ph048d2,ph048d3,ph048d4,ph048d5,ph048d6,ph048d7,ph048d8,ph048d9,ph048d10,ph048dno,ph049d1,ph049d2,ph049d3,ph049d4,ph049d5,ph049d6,ph049d7,ph049d8,ph049d9,ph049d10,ph049d11,ph049d12,ph049d13,ph049dno,ph061_,ph065_,ph066_,ph071_1,ph071_2,ph071_3,ph071_4,ph072_1,ph072_2,ph072_3,ph072_4,ph073_1,ph073_2,ph073_3,ph073_4,ph074_1,ph074_2,ph074_3,ph074_4,ph075_1,ph075_2,ph075_3,ph075_4,ph076_1,ph076_2,ph076_3,ph076_4,ph077_1,ph077_2,ph077_3,ph077_4,ph084_,ph085_,ph089d1,ph089d2,ph089d3,ph089d4,ph090_,ph091_,ph092_,ph094_,ph095_,mh037_,br015_,br016_,isced1997_r,initial_euro_d,euro_d --- How can i decide whether an instance is depressed or not? For example, consider this instance and find me the value for "???" 61.0,1.0,2.0,,,,4.0,1.0,1.0,15000.0,5.0,5.0,2.0,3.0,1.0,4.0,1.0,0.0,0.0,0.0,1.0,1.0,0.0,0.0,10.0,3.0,3.0,4.0,1.0,4.0,4.0,1.0,1.0,1.0,1.0,2.0,1.0,3.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,3.0,0.0,11.0,11.0,3.0,5.0,3.0,0.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,,,,,,,,,,,,,,,,,,,,,,,0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,70.0,166.0,5.0,2.0,2.0,5.0,2.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0,5.0,5.0,,,,,,5.0,5.0,5.0,5.0,,,,,,,,,,,,,,,,,,,,,5.0,,0.0,0.0,0.0,0.0,,5.0,7.0,2.0,,3.0,1.0,1.0,5.0,no,???
+```
 """
+
+# ╔═╡ bbf77d77-41d8-471b-84d6-77bca60ee9f5
+md"""
+!!! info "Exercise"
+	- Do you think the prompt above can give you some insights?
+	- If so, what is the price you have to pay?
+"""
+
+# ╔═╡ 70529231-d37d-4b23-bb62-d73fc3afc977
+md"""
+### Prompt #2
+```
+Give me the minimal explanation rule for this random forest:
+▣ ([difficulty_none_adl__0.0] < 0.5)
+├✔ ([life_satisfaction] < 7.5)
+│ ├✔ ([gender__2.0] < 0.5)
+│ │ ├✔ ([pain__1.0] < 0.5)
+│ │ │ ├✔ ([life_satisfaction] < 5.5)
+│ │ │ │ ├✔ ([feel_full_of_energy__1.0] < 0.5)
+│ │ │ │ │ ├✔ no
+│ │ │ │ │ └✘ no
+│ │ │ │ └✘ ([out_of_control__2.0] < 0.5)
+│ │ │ │   ├✔ no
+│ │ │ │   └✘ no
+etc...
+```
+"""
+
+# ╔═╡ 34a6e1cf-ea00-4f5a-9750-8c705c4c9118
+LocalResource("../images/prompt-02-02.png")
 
 # ╔═╡ Cell order:
 # ╟─34bafc6f-ac2a-4cdb-b9c2-f766111251cb
 # ╠═a1000000-3353-11f1-90b2-21952756a80b
 # ╠═53c022c4-b0f3-42c0-94b0-7114bec855e7
-# ╠═9e1b6b33-65e7-4eb2-a26b-b622546a2d75
 # ╟─d7df4cf0-e938-471a-8284-e741588cf830
 # ╠═a2000000-3353-11f1-90b2-21952756a80b
 # ╠═a3000000-3353-11f1-90b2-21952756a80b
@@ -868,7 +873,7 @@ md"""
 # ╠═9955fa39-3aae-4cf8-81e6-a2e3ce7d5615
 # ╠═b7b72708-4f7a-4a5b-a898-b0487b4ef44e
 # ╠═7f731578-78c6-4c06-8cf8-a121fb7c0345
-# ╠═69a04f86-9c42-49b1-92e3-02aaed3fd97b
+# ╟─69a04f86-9c42-49b1-92e3-02aaed3fd97b
 # ╟─5723b1e8-b594-4893-b71d-3df41fe49393
 # ╠═0946aa01-90cf-4747-915b-f6806995a36b
 # ╟─c4aa241b-d4da-4b08-9143-9ff2754564cc
@@ -883,4 +888,7 @@ md"""
 # ╟─eb0c334f-2be9-45ca-b4d6-b747396d9a6d
 # ╠═b48b9625-22bf-4d64-bf88-5c6d923e196d
 # ╠═bbfdc551-476d-4d28-b676-f5477fc8c12b
-# ╠═af48c01f-a98d-43c2-9a14-d4c780f86590
+# ╟─af48c01f-a98d-43c2-9a14-d4c780f86590
+# ╟─bbf77d77-41d8-471b-84d6-77bca60ee9f5
+# ╟─70529231-d37d-4b23-bb62-d73fc3afc977
+# ╠═34a6e1cf-ea00-4f5a-9750-8c705c4c9118
