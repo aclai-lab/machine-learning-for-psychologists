@@ -115,26 +115,40 @@ function filter_df(df::AbstractDataFrame, ::Val{:zscore};
     return df[keep, :]
 end
 
-function filter_df(df::AbstractDataFrame, ::Val{:cast};
+function filter_df(df::AbstractDataFrame,
+    ::Val{:cast};
     cast_threshold::Int=30,
-    ignore_cols::AbstractVector=String[])
-    out = copy(df)
+    ignore_cols::AbstractVector=String[]
+)
+    out = deepcopy(df)
+
     for col in names(out)
         col ∈ ignore_cols && continue
-        x = out[!, col]
-        T = eltype(x)
 
-        if T <: Union{AbstractString,Bool,Missing}
+        x = out[!, col]
+
+        nof_unique_values = length(unique(x))
+
+        if nof_unique_values <= cast_threshold
             out[!, col] = categorical(x)
-        elseif T <: Union{Real,Missing}
-            if length(unique(skipmissing(x))) <= cast_threshold
-                out[!, col] = categorical(x)
-            else
-                out[!, col] = passmissing(Float64).(x)
-            end
         else
-            out[!, col] = categorical(string.(x))
+            # keep out[!, col] as a Float64?
         end
-    end
+
+    #
+    #     T = eltype(x)
+    #
+    #     if T <: Union{AbstractString,Bool,Missing}
+    #         out[!, col] = categorical(x)
+    #     elseif T <: Union{Real,Missing}
+    #         if length(unique(skipmissing(x))) <= cast_threshold
+    #             out[!, col] = categorical(x)
+    #         else
+    #             out[!, col] = passmissing(Float64).(x)
+    #         end
+    #     else
+    #         out[!, col] = categorical(string.(x))
+    #     end
+    # end
     return out
 end

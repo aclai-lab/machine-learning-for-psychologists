@@ -499,7 +499,7 @@ Note that `euro_d` is exactly the label we want to predict in the second noteboo
 
 # ╔═╡ 3575f98f-37b4-4504-aec0-a6e546a7fb7e
 euro_d_attributes = [
-	"depression_symptom_depression", 
+	"depression_symptom_depressive_mood", 
 	"depression_symptom_pessimism", 
 	"depression_symptom_suicidality", 
 	"depression_symptom_guilt", 
@@ -614,10 +614,14 @@ numerical_attribute_names = []
 # ╔═╡ 8d913135-5ee6-407a-aedb-c55b68b3b70d
 categorical_attribute_names = []
 
+# ╔═╡ 4f327386-a495-48d0-9a11-9f769b5c7bec
+eltype(df_typed_deepcopy[:, "ethnicity"]) <: Union{Missing, CategoricalValue} 
+
 # ╔═╡ 340c97fe-837f-4563-a70e-1f04f9d02818
 for name in names(df_typed)
 	name == "euro_d" && continue
-	if df_typed[1,name] isa CategoricalValue
+	if df_typed[1,name] isa CategoricalValue || 
+		eltype(df_typed[1,name]) <: Union{Missing, CategoricalValue} 
 		push!(categorical_attribute_names, name)
 		println("Categorical: $(name)")
 	else
@@ -631,6 +635,7 @@ end
 
 # ╔═╡ 5bce1728-42b6-4d11-8e67-bdcbb261f758
 for col in numerical_attribute_names
+	println(col)
 	val = numerical_impute_strategy(df_typed[!, col])
 	df_typed[!, col] = coalesce.(df_typed[!, col], val)
 end
@@ -715,7 +720,7 @@ begin
 end
 
 # ╔═╡ d88e83ce-a1d5-4b6d-9f49-061a307dbee4
-@bind z_score_threshold Slider(0.01:0.01:4, show_value=true, default=2.0)
+@bind z_score_threshold Slider(0.25:0.01:4, show_value=true, default=2.0)
 
 # ╔═╡ d5851387-9ceb-41ca-9e7a-e4064080e8cb
 df_no_outliers = filter_df(df_freq_filter, :zscore;
@@ -1072,6 +1077,7 @@ LocalResource("../images/prompt-01-03.png")
 # ╠═26537045-ee8b-496f-82dc-628221894934
 # ╠═4ec2c869-8b09-4b25-9bbe-101d632c096f
 # ╠═8d913135-5ee6-407a-aedb-c55b68b3b70d
+# ╠═4f327386-a495-48d0-9a11-9f769b5c7bec
 # ╠═340c97fe-837f-4563-a70e-1f04f9d02818
 # ╠═9ea155da-c7a1-46be-afdb-7bbf1bee5020
 # ╠═5bce1728-42b6-4d11-8e67-bdcbb261f758
