@@ -605,7 +605,7 @@ md"""
 
 # ╔═╡ 26537045-ee8b-496f-82dc-628221894934
 df_typed = filter_df(df_euro_clean, :cast;
-	cast_threshold=10,
+	cast_threshold=23,
 	ignore_cols=["euro_d"])
 
 # ╔═╡ 4ec2c869-8b09-4b25-9bbe-101d632c096f
@@ -615,19 +615,19 @@ numerical_attribute_names = []
 categorical_attribute_names = []
 
 # ╔═╡ 4f327386-a495-48d0-9a11-9f769b5c7bec
-eltype(df_typed_deepcopy[:, "ethnicity"]) <: Union{Missing, CategoricalValue} 
+eltype(df_typed[:, "ethnicity"]) 
 
 # ╔═╡ 340c97fe-837f-4563-a70e-1f04f9d02818
 for name in names(df_typed)
-	name == "euro_d" && continue
-	if df_typed[1,name] isa CategoricalValue || 
-		eltype(df_typed[1,name]) <: Union{Missing, CategoricalValue} 
-		push!(categorical_attribute_names, name)
-		println("Categorical: $(name)")
-	else
-		push!(numerical_attribute_names, name)
-		println("Numeric: $(name)")
-	end
+    name == "euro_d" && continue
+    T = eltype(df_typed[!, name])
+    if T <: Union{Missing, CategoricalValue}
+        push!(categorical_attribute_names, name)
+        println("Categorical: $name")
+    else
+        push!(numerical_attribute_names, name)
+        println("Numeric: $name")
+    end
 end
 
 # ╔═╡ 9ea155da-c7a1-46be-afdb-7bbf1bee5020

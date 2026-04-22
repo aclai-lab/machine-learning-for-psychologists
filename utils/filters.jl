@@ -134,7 +134,7 @@ function filter_df(df::AbstractDataFrame,
         else
             # keep out[!, col] as a Float64?
         end
-
+    end
     #
     #     T = eltype(x)
     #
