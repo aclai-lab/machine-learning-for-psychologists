@@ -43,6 +43,7 @@ begin
 
 	# for the interactive Pluto's environment and plotting
 	using PlutoUI
+	using PlutoTeachingTools
 	using Plots
 	using StatsPlots	
 end
@@ -406,7 +407,7 @@ md"""
 	- **MAR** (Missing At Random): missings depends on other observed variables but not the missing data itself (e.g., women are more likely to report their weight than men);
 	- **MNAR** (Missing Not At Random): the probability of missingness depends on the missing values themselves (e.g., high-income earners refuse to disclose their salary and missingness is directly tied to salary amount).
 
-	Dropping attributes with many MAR and MNAR can bias results badly!
+	Notice! dropping attributes with many MAR and MNAR CAN bias results badly!
 """
 
 # ╔═╡ 8d047693-fc98-44da-8ba2-53b43c0ffb88
@@ -774,6 +775,17 @@ md"""
 	*If we compute the entropy for an attribute, and it is relatively low, then this means that the attribute is not informative and can be discarded*.
 """
 
+# ╔═╡ 47b09493-06a9-48b0-aa52-5de51aca9e76
+hint("""
+**Entropy = how surprised you are by the data.**
+- **Entropy = 0** → all elements are the same `{a,a,a,a,a}`. You always know what comes next. No surprise.
+- **Entropy = max** → all values appear the same number of times `{a,b,c,a,b,c}`. You never know what comes next. Maximum surprise.
+The max entropy formula is:
+\$\$H_{max} = \\log_2(n)\$\$
+where **n = number of different values** in your data.
+> The higher the entropy, the more \"mixed\" your data is.
+""")
+
 # ╔═╡ b4d57562-aab5-44ee-be52-3c106e0ce170
 md"""
 Knowing the entropy of two columns, X and Y, we can compute the *mutual information* (MI):
@@ -837,7 +849,7 @@ end
 
 # ╔═╡ 0207e0c5-9a8a-4daf-942c-edc54aac352f
 begin
-	println("Top $(top_k_print) mutual information:")
+	println("Top $(top_k_print) with less mutual information:")
     for (col, ent) in mi_dict_sorted[1:top_k_print]
         println("$col → $ent")
     end
@@ -1028,7 +1040,7 @@ LocalResource("../images/prompt-01-03.png")
 # ╟─276b5cc2-b96c-4ddb-83dc-4ffb71978982
 # ╟─a0e4c864-da20-4020-8f90-5f311ec1ba00
 # ╟─51f15ec3-d939-4416-9281-3b34b673fed6
-# ╟─f5a540a6-4660-47cb-8f82-594d8d40dd1f
+# ╠═f5a540a6-4660-47cb-8f82-594d8d40dd1f
 # ╠═35c37143-19be-4504-a289-6404c794c617
 # ╠═e6228654-1fd3-433d-8cc3-0ebda46e90af
 # ╠═b7dc3954-e7e2-4064-b96b-0f18ac20fd45
@@ -1088,16 +1100,17 @@ LocalResource("../images/prompt-01-03.png")
 # ╠═d5851387-9ceb-41ca-9e7a-e4064080e8cb
 # ╠═cca099f8-16f7-4960-bda0-ac86057be55b
 # ╠═aca83632-41ae-4696-ba82-7bcbbc5c6571
-# ╠═f7a5338f-9652-49f6-a95b-a91477e0788a
+# ╟─f7a5338f-9652-49f6-a95b-a91477e0788a
 # ╟─cfc63ecc-56e9-4347-b9af-122b83a2f9a3
 # ╟─35aa1f50-a2db-42c5-a080-45ec0d76ee33
 # ╟─2380ce25-6af6-4ed3-b528-d4fd55ef4abb
+# ╟─47b09493-06a9-48b0-aa52-5de51aca9e76
 # ╟─b4d57562-aab5-44ee-be52-3c106e0ce170
 # ╟─85a27e1d-4635-46c7-bd14-89a6e6f088f8
 # ╠═240443a3-42f2-4baf-b46b-621b97d5cd51
 # ╠═7e3de156-3690-4ec2-b138-093f239f4a32
 # ╠═2ea7a28e-3a74-4011-98f4-1c6a8cc639dd
-# ╟─28e85f18-0f54-459d-989c-6a971f25b15f
+# ╠═28e85f18-0f54-459d-989c-6a971f25b15f
 # ╠═0207e0c5-9a8a-4daf-942c-edc54aac352f
 # ╠═92a4c81a-8bd4-457a-86da-96be85c3fb89
 # ╠═b0b97508-39a1-4f91-9975-188bbae4cb1b
