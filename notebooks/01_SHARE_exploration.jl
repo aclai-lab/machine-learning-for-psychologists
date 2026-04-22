@@ -488,19 +488,13 @@ histogram(
 
 # ╔═╡ 147b3de2-5a64-4bfc-adc8-af8c9b5d25b8
 md"""
-# Labels Exploration
+# Euro-D Attributes
 
 The attributes `initial_euro_d` and `euro_d` states whether a patient is depressed or non-depressed, respectively at baseline and follow-up.
 
-It is important to note that the `euro_d` attribute (or the pair of the attributes above) is particularly important, since our final goal is to train machine learning predictors for this label (or, possibly, the pair).
+In particular, the `initial_euro_d` is a *feature* obtained by aggregating the twelve `euro_d_attributes` available; if the total (excluding negative values) is greater than or equal to 4, then the patient is depressed at the baseline.
 
-A graphical inspection of the relation between the label and other attributes can be insightful.
-"""
-
-# ╔═╡ 4bf08b0e-ab51-4799-92bc-2c0991b561d3
-md"""
-!!! note
-	Actually, `euro_d` can be considered a *feature* derived by summing together all the integer values in the `euro_d_attributes` columns (see below); if the total is greater than or equal to 4, then the patient is depressed at follow-up.
+Note that `euro_d` is exactly the label we want to predict in the second notebook!
 """
 
 # ╔═╡ 3575f98f-37b4-4504-aec0-a6e546a7fb7e
@@ -521,9 +515,8 @@ euro_d_attributes = [
 
 # ╔═╡ 23fb94fc-1909-43a0-9151-c9b0874ea87c
 md"""
-!!! warning
-	When dealing with `euro_d_X` attributes, we decide to ignore the (few) instances presenting some fields with -1 or -2 values (respectively, *don't know* and *I prefer not to answer*).
-
+!!! warning "A note on negative euro_d scores"
+	Beware of negative values when dealing with `euro_d_X` attributes; -1 encodes *don't know* while -2 encodes *I prefer not to answer*. 
 """
 
 # ╔═╡ 9c17d796-1b74-4fcf-99cb-02975bbd9a83
@@ -1061,7 +1054,6 @@ LocalResource("../images/prompt-01-03.png")
 # ╠═3094d269-cd3d-46b6-9f32-cb99e19f3cc9
 # ╠═d09c8f96-74fa-4e98-87b3-080f8d0aae02
 # ╟─147b3de2-5a64-4bfc-adc8-af8c9b5d25b8
-# ╟─4bf08b0e-ab51-4799-92bc-2c0991b561d3
 # ╟─3575f98f-37b4-4504-aec0-a6e546a7fb7e
 # ╟─23fb94fc-1909-43a0-9151-c9b0874ea87c
 # ╠═9c17d796-1b74-4fcf-99cb-02975bbd9a83

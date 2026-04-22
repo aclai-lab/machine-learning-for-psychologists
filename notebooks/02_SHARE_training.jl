@@ -16,1106 +16,879 @@ macro bind(def, element)
     #! format: on
 end
 
-# ╔═╡ 494947b5-219b-43ad-b29f-56216b3dc639
+# ╔═╡ a1000000-3353-11f1-90b2-21952756a80b
 begin
-	import Pkg
-	Pkg.activate(Base.current_project(@__DIR__))
+    import Pkg
+    Pkg.activate(Base.current_project(@__DIR__))
 
-	# necessary to read and write the dataset from binary .sav files
-	using FileIO
-	using StatFiles
-	using Serialization
-	
-	# libraries for supporting various data encodings
-	using CSV
-	using DataFrames
-	using CategoricalArrays
+	# necessary to read and write the work done in the previous notebook
+    using Serialization
 
-	# general utilities for data exploration and values imputation
-	using Statistics
-	using StatsBase
-	# using Impute
-
-	# our own utilities for cleaning data!
-	INCLUDE_PATH = joinpath(@__DIR__, "..", "utils")
-	include(joinpath(INCLUDE_PATH, "filters.jl"));
-	include(joinpath(INCLUDE_PATH, "adapters.jl"));
-
-	# for the interactive Pluto's environment and plotting
-	using PlutoUI
-	using PlutoTeachingTools
+	# general utilities for data encodings, statistics and visualizations
+    using DataFrames
+    using StatsBase
+    using PlutoUI
+	import PlutoUI: combine
 	using Plots
-	using StatsPlots	
+
+	# the machine learning engines!
+    using MLJ
+	using MLJBase
+	using MLJTransforms
+	#using SoleData.Artifacts
+	using SoleModels
+	using SolePostHoc
+
+	# generics
+	using Random
+	using CategoricalArrays
+	INCLUDE_PATH = joinpath(@__DIR__, "..", "utils")
+	include(joinpath(INCLUDE_PATH, "adapters.jl"));
+	include(joinpath(INCLUDE_PATH, "measures.jl"));
+
+	# just a flag to suppress some warnings
+	scitype_check_level=0;
 end
 
-# ╔═╡ 2807db23-4cbb-4542-9de1-26610595c6bd
+# ╔═╡ 34bafc6f-ac2a-4cdb-b9c2-f766111251cb
 md"""
-# SHARE data preprocessing
+# SHARE Training Pipeline
 
-Welcome! In this project, we are interested in training a machine learning model for properly estimate the risk of an individual developing depression.
+In this notebook, we are going to leverage **MLJ** and **Sole** to train decision trees and forests for learning and manipulating the theory underlying the SHARE dataset.
 
-In this notebook we focus in the data exploration and cleaning processes.
+MLJ is probably the most famous package in Julia for supporting machine learning workflows with structured (i.e., tabular) data.
+
+Sole is a framework specialized for the treatment of *symbolic* models. Very briefly, it enables the learning of original models, a deep inspection and optimization of the latter, and even dealing with unstructured (i.e., non tabular) data.
+
+It is very common to see "double-connected channels" between MLJ and other packages of the Julia community! As we shall later, Sole is no exception, and the two frameworks can be used in synergy.
 """
 
-# ╔═╡ 49733da1-b29a-41cd-a1dd-3d748ca70f97
-md"""
-# Imports
-"""
+# ╔═╡ 53c022c4-b0f3-42c0-94b0-7114bec855e7
+# code to use to guarantee reproducibility when leveraging randomness
+RNG_SEED = 1605
 
-# ╔═╡ a6c8a233-8c6f-43b2-a4fd-a0bbc6425d74
+# ╔═╡ d7df4cf0-e938-471a-8284-e741588cf830
 md"""
 # Data Loading
 
-In this section, we are going to load the data coming from the SHARE research infrastructure, consisting of more than 40.000 surveys.
-
-It is important to note that the data is publicly available, but we are going to consider a slightly refined version by Murri et al., described in their work [Risk Prediction Models for Depression in Community-Dwelling Older Adults](https://www.ajgponline.org/article/S1064-7481(22)00435-3/abstract). 
-
-In the work just mentioned, data was collected with the final goal of developing machine-learning predictors for late-life depression, including demographic characteristics, health-related factors, disability and individual depressive symptoms.
-
-In particular, we are dealing with data from wave 5 (collected in 2013), consisting of baseline and retrospective information, and outcome data from wave 6 (collected in 2015). 
+In the previous notebook, we serialized the cleaned data.
+Here, we load the same exact data.
 """
 
-# ╔═╡ e11b7142-8349-452e-9f8c-aaf006d90790
-md"""
-!!! tip
-	In the cell below we define the *filepath* of the binary data to read, `SAV_PATH`, and the filepath where the human-readable CSV version must be saved, `CSV_PATH`.
-
-	To do so, we leverage the `joinpath` function and the `@__DIR__` shortcut; these are crucial to guarantee the reproducibility of your data analysis!
-
-	Try to leverage the documentation of Julia to learn about them (click *Live docs* in the bottom-right corner).
-"""
-
-# ╔═╡ e202a63d-b119-47ac-bf70-6516fb29f423
+# ╔═╡ a2000000-3353-11f1-90b2-21952756a80b
 begin
-	DATASET_FOLDER = joinpath(@__DIR__, "..", "datasets");
-	
-	DATA_PATH = joinpath(DATASET_FOLDER, "not_onco_combined_dataset");
-	SAV_PATH = "$(DATA_PATH).sav";
-	CSV_PATH = "$(DATA_PATH).csv";
+    DATASET_FOLDER = joinpath(@__DIR__, "..", "datasets")
+    SERIALIZE_PATH = joinpath(DATASET_FOLDER, "share_clean_test_checkpoint.jls")
 end
 
-# ╔═╡ f6b53ccf-85e2-40bd-bef4-6a329b1bf2d4
-df_raw = DataFrame(load(SAV_PATH))
-
-# ╔═╡ c5e327e5-a169-4f25-a09d-d0c4f6540d9d
-md"""
-!!! info
-	[Click here](https://en.wikipedia.org/wiki/Comma-separated_values) to know more about CSV (comma-separated values).
-"""
-
-# ╔═╡ 6a09514b-b065-448e-bf78-420c0d6ce6a5
-CSV.write(CSV_PATH, df_raw)
-
-# ╔═╡ d3a4de4f-10c8-4e70-9104-b47364b99179
-md"""
-# Data Exploration
-
-First of all, we want to take a bit of familiarity with data.
-At the end of this section we should be able to answer the following questions:
-1. how many instances and attributes are there?
-2. what do attributes encode? which are categorical and which are continuous?
-3. looking at the distributions, are there attributes that are trivially uninformative? (e.g., having always the same value)
-"""
-
-# ╔═╡ 7db28b02-a364-4bd0-84fe-be7c2d87e2cc
-md"""
-!!! info 
-	To decipher the meaning of each attribute code, we need to consult the [supplementary material](https://dk.aclai.unife.it/Supplementary_information.pdf) shared with the work of Murri et al. or, more generally, the [official SHARE archive website](https://www.share-datadocutool.org/study-units/view/6).
-
-	The mapping `attribute_names` will be useful to translate the attribute names of in `df`.
-"""
-
-# ╔═╡ c88ab2ca-0a1a-4065-b1bb-10858e45b599
-attribute_names = Dict(
-	# Section 1: Sociodemographic
-	"age_int" => "age",
-    "dn042_" => "gender",
-    "dn503_" => "ethnicity",
-    "dn014_" => "marital_status",
-    "iv009_" => "residence_rural_urban",
-    "hhsize" => "household_size",
-	"isced1997_r" => "education_level",
-
-	# social contacts
-    "sp002_" => "social_support_received",
-    "sp008_" => "social_support_given",
-    "ch001_" => "number_of_children",
-    "ch021_" => "number_of_grandchildren",
-    "dn034_" => "number_of_siblings",
-    "ep005_" => "occupation_employment",
-
-	# activities
-    "ac035d1" => "voluntary_charity_work",
-    "ac035d4" => "educational_training_course",
-    "ac035d5" => "sport_social_club",
-    "ac035d7" => "political_community_org",
-    "ac035d8" => "reading_books_magazines",
-    "ac035d9" => "word_number_games",
-    "ac035d10" => "cards_chess_games",
-    "ac035dno" => "no_activities",
-    "it003_" => "computer_skills",
-    "hh022_" => "perception_of_neighbourhood",
-    "hh025_" => "people_who_would_help",
-    "hh017e" => "low_income",
-
-	# Section 2: Mental Health
-	
-	# depression symptoms (EURO-D standard)
-    "euro1" => "depression_symptom_depression",
-    "euro2" => "depression_symptom_pessimism",
-    "euro3" => "depression_symptom_suicidality",
-    "euro4" => "depression_symptom_guilt",
-    "euro5" => "depression_symptom_sleep",
-    "euro6" => "depression_symptom_interest",
-    "euro7" => "depression_symptom_irritability",
-    "euro8" => "depression_symptom_appetite",
-    "euro9" => "depression_symptom_fatigue",
-    "euro10" => "depression_symptom_concentration",
-    "euro11" => "depression_symptom_enjoyment",
-    "euro12" => "depression_symptom_tearfulness",
-    "ph011d10" => "psychotropic_drug_use",
-    "ph006d16" => "cognitive_problems_diagnosed",
-
-	# quality of life
-    "ac012_" => "life_satisfaction",
-    "mh037_" => "loneliness",
-
-	# negative cognitive style
-    "ac014_" => "age_prevents_doing_things",
-    "ac015_" => "out_of_control",
-    "ac016_" => "feel_left_out",
-    "ac017_" => "do_things_you_want",
-    "ac018_" => "family_responsibilities_prevent",
-    "ac019_" => "shortage_of_money_stops",
-    "ac020_" => "look_forward_each_day",
-    "ac021_" => "life_has_meaning",
-    "ac022_" => "look_back_with_happiness",
-    "ac023_" => "feel_full_of_energy",
-    "ac024_" => "full_of_opportunities",
-    "ac025_" => "future_looks_good",
-
-	# Section 3: Physical Health
-    "ph071_1" => "heart_attack",
-    "ph071_2" => "stroke_vascular_disease",
-    "ph071_3" => "cancer",
-    "ph071_4" => "hip_fracture_femoral",
-    "ph072_1" => "had_condition_heart_attack",
-    "ph072_2" => "had_condition_stroke_vascular_disease",
-    "ph072_3" => "had_condition_cancer",
-    "ph072_4" => "had_condition_hip_fracture_femoral",
-    "ph073_1" => "had_condition_checked_heart_attack",
-    "ph073_2" => "had_condition_checked_stroke_vascular_disease",
-    "ph073_3" => "had_condition_checked_cancer",
-    "ph073_4" => "had_condition_checked_hip_fracture_femoral",
-    "ph074_1" => "reason_heart_attack",
-    "ph074_2" => "reason_stroke_vascular_disease",
-    "ph074_3" => "reason_cancer",
-    "ph074_4" => "reason_hip_fracture_femoral",
-    "ph075_1" => "had_condition_conf_heart_attack",
-    "ph075_2" => "had_condition_conf_stroke_vascular_disease",
-    "ph075_3" => "had_condition_conf_cancer",
-    "ph075_4" => "had_condition_conf_hip_fracture_femoral",
-    "ph076_1" => "most_recent_year_heart_attack",
-    "ph076_2" => "most_recent_year_stroke_vascular_disease",
-    "ph076_3" => "most_recent_year_cancer",
-    "ph076_4" => "most_recent_year_hip_fracture_femoral",
-    "ph077_1" => "month_condition_heart_attack",
-    "ph077_2" => "month_condition_stroke_vascular_disease",
-    "ph077_3" => "month_condition_cancer",
-    "ph077_4" => "month_condition_hip_fracture_femoral",
-    "ph006d5" => "diabetes",
-    "ph006d6" => "chronic_lung_disease",
-    "ph006d12" => "parkinson_disease",
-
-	# drug use
-    "ph011d1" => "drugs_high_cholesterol",
-    "ph011d11" => "drugs_osteoporosis",
-    "ph011d13" => "drugs_stomach_burns",
-    "ph011d14" => "drugs_chronic_bronchitis",
-    "ph011d15" => "drugs_corticosteroids",
-    "ph011d2" => "drugs_high_blood_pressure",
-    "ph011d3" => "drugs_coronary_diseases",
-    "ph011d4" => "drugs_other_heart_diseases",
-    "ph011d6" => "drugs_diabetes",
-    "ph011d7" => "drugs_joint_pain",
-    "ph011d8" => "drugs_other_pain",
-    "ph011d9" => "drugs_sleep_problems",
-    "ph011dno" => "drugs_none",
-    "ph011dot" => "drugs_other",
-    "ph003_" => "perceived_health",
-    "ph006d3" => "hypercholesterolemia",
-
-	# physical condition
-    "ph046_" => "hearing",
-    "ph043_" => "eyesight_distance",
-    "ph044_" => "eyesight_reading",
-    "ph092_" => "missing_teeth",
-    "bmi2" => "bmi_categories",
-    "ph012_" => "weight",
-    "ph013_" => "height",
-    "ph065_" => "weight_loss",
-    "ph061_" => "lim_paid_work",
-    "ph066_" => "reason_lost_weight",
-
-	# ADLs (Activities of Daily Living)
-    "ph041_" => "use_glasses",
-    "ph045_" => "use_hearing_aid",
-    "ph048d1" => "difficulty_walking_100m",
-    "ph048d2" => "difficulty_sitting_2h",
-    "ph048d3" => "difficulty_getting_up_chair",
-    "ph048d4" => "difficulty_climbing_several_stairs",
-    "ph048d5" => "difficulty_climbing_one_flight",
-    "ph048d6" => "difficulty_stooping_kneeling",
-    "ph048d7" => "difficulty_reaching_arms",
-    "ph048d8" => "difficulty_pushing_large_objects",
-    "ph048d9" => "difficulty_lifting_5kg",
-    "ph048d10" => "difficulty_picking_coin",
-    "ph048dno" => "difficulty_none_adl",
-    "ph090_" => "bifoc_glass_lenses",
-    "ph091_" => "all_natural_teeth",
-    "ph094_" => "artificial_teeth",
-    "ph095_" => "lost_weight",
-
-	# IADLs (Instrumental Activities of Daily Living)
-    "ph049d1" => "difficulty_dressing",
-    "ph049d2" => "difficulty_walking_room",
-    "ph049d3" => "difficulty_bathing",
-    "ph049d4" => "difficulty_eating",
-    "ph049d5" => "difficulty_getting_out_bed",
-    "ph049d6" => "difficulty_using_toilet",
-    "ph049d7" => "difficulty_using_map",
-    "ph049d8" => "difficulty_preparing_meal",
-    "ph049d9" => "difficulty_shopping",
-    "ph049d10" => "difficulty_telephone",
-    "ph049d11" => "difficulty_taking_medications",
-    "ph049d12" => "difficulty_housework",
-    "ph049d13" => "difficulty_managing_money",
-    "ph049dno" => "difficulty_none_iadl",
-
-	# frailities
-    "ph089d1" => "bothered_falling_down",
-    "ph089d2" => "fear_of_falling",
-    "ph089d3" => "dizziness_faints_blackouts",
-
-    # physical symptoms
-    "ph084_" => "pain",
-    "ph089d4" => "fatigue_frailty",
-    "ph085_" => "pain_level",
-    "ph008d11" => "trouble_sleeping",
-    "ph008d12" => "trouble_falling_asleep",
-    "ph008d13" => "trouble_waking_during_night",
-    "ph008d14" => "trouble_waking_too_early",
-    "ph008d15" => "trouble_feeling_restored",
-    "ph008d16" => "trouble_sleeping_difficulty",
-    "ph008d17" => "trouble_sleeping_tired",
-    "ph008d18" => "trouble_sleeping_energy",
-    "ph008d19" => "trouble_sleeping_problem",
-    "ph008d20" => "trouble_sleeping_restless",
-    "ph008d21" => "trouble_sleeping_insomnia",
-    "ph008d22" => "trouble_sleeping_other",
-    "ph008dot" => "trouble_sleeping_none",
-    "ph006d1" => "heart_disease",
-    "ph006d2" => "hypertension",
-    "ph006d4" => "vascular_disease",
-    "ph006d10" => "told_cancer",
-    "ph006d11" => "ulcer",
-    "ph006d13" => "cataracts",
-    "ph006d14" => "femoral_fracture",
-    "ph006d15" => "other_fracture",
-    "ph006d16" => "alzheimer",
-    "ph006d18" => "emotional_disorders",
-    "ph006d19" => "rheumatoid_arthritis",
-    "ph006d20" => "osteoarthritis",
-    "ph006dno" => "no_disease",
-    "ph006dot" => "other_disease",
-    "ph004_" => "long_term_illness_disability",
-    "ph005_" => "limited_activity",
-    "ph008d2"  => "oral_cancer",
-    "ph008d3"  => "larynx_cancer",
-    "ph008d4"  => "pharynx_cancer",
-    "ph008d5"  => "thryoid_cancer",
-    "ph008d6"  => "lung_cancer",
-    "ph008d7"  => "breast_cancer",
-    "ph008d8"  => "oesophagus_cancer",
-    "ph008d9"  => "stomach_cancer",
-    "ph008d10" => "liver_cancer",
-    "co007_" => "household_ends_meet",
-
-	# habits and lifestyle
-    "br015_" => "vigorous_physical_activity",
-    "br016_" => "moderate_physical_activity",
-    "phactiv" => "no_physical_activity",
-)
-
-
-# ╔═╡ 276b5cc2-b96c-4ddb-83dc-4ffb71978982
-md"""
-!!! warning "Dropped variables"
-	The collection below, `dropped_variables`, is a collection of attributes that are not exploited in the work mentioned above. We decide to ignore them.
-"""
-
-# ╔═╡ a0e4c864-da20-4020-8f90-5f311ec1ba00
-dropped_variables = [ "mergeid", "hhid5", "hhid6", "hhid7", "mergeidp5", "mergeidp6", "mergeidp7", "coupleid5", "coupleid6", "coupleid7", "wave", "ph008d1", "ph054_", "ph080d1", "ph080d2", "ph080d3", "ph080d4", "ph080d5", "ph080d6", "ph080d7", "ph080d8", "ph080d9", "ph080d10", "ph080d11", "ph080d12", "ph080d13", "ph080d14", "ph080d15", "ph080d16", "ph080d17", "ph080d18", "ph080d19", "ph080d20", "ph080d21", "ph080d22", "ph080dot", "ph087d1", "ph087d2", "ph087d3", "ph087d4", "ph087d5", "ph087d6", "ph087d7", "ph088_", "ph089dno", "ph082_", "ph006d21", "ph049d14", "ph049d15", "ph050_", "ph051_", "ph059d1", "ph059d2", "ph059d3", "ph059d4", "ph059d5", "ph059d6", "ph059d7", "ph059d8", "ph059d9", "ph059d10", "ph059dno", "ph059dot", "ph690d1", "ph690d2", "ph690d3", "ph690d4", "ph745_", "ph009_1", "ph009_2", "ph009_3", "ph009_4", "ph009_5", "ph009_6", "ph009_10", "ph009_11", "ph009_12", "ph009_13", "ph009_14", "ph009_15", "ph009_16", "ph009_18", "ph009_19", "ph009_20", "ph009_other", "hc012_", "hc029_", "hc114_", "hc115_", "hc125_", "ph009_21"]
-
-# ╔═╡ 51f15ec3-d939-4416-9281-3b34b673fed6
-md"""
-!!! warning "Float64?"
-	Most of our attributes are of type "Float64?".
-
-	What does this mean?
-"""
-
-# ╔═╡ f5a540a6-4660-47cb-8f82-594d8d40dd1f
-df = select(df_raw, Not(dropped_variables))
-
-# ╔═╡ 35c37143-19be-4504-a289-6404c794c617
-rename!(df, Dict(Symbol(k) => Symbol(v) for (k, v) in attribute_names))
-
-# ╔═╡ e6228654-1fd3-433d-8cc3-0ebda46e90af
-n_rows, n_cols = size(df)
-
-# ╔═╡ b7dc3954-e7e2-4064-b96b-0f18ac20fd45
-@bind colname Select(names(df))
-
-# ╔═╡ 44130ea6-884e-45a7-a580-290b09609a49
-histogram(
-	collect(df[:, colname]), 
-	xlabel=colname, 
-	ylabel="Count", 
-	title=colname, 
-	legend=false
-)
-
-# ╔═╡ 43648c1f-7874-4c65-b4e5-8dce3bb8b4c8
-md"""
-# Data Cleaning: Missing Values
-
-We proceed to get rid of attributes and instances having too many missing values. 
-
-Using two sliders, one for each case, we are going to set a threshold for how many missing value to keep at most.
-
-This step can be considered naive, in certain scenario (see below); we propose and discuss it anyway for educative purposes. Later, we are going to drop attributes based on more refined considerations.
-"""
-
-# ╔═╡ fee060cb-c7b4-4956-a47b-8219bd9aa3b1
-md"""
-!!! warning "The trap of removing missing values"
-	The following steps are useful for clean the data but, depending on the domain of interest, could result in a very naive mistake!
-
-	Given a specific attribute, the value of a certain instance can be missing for three reasons:
-	- **MCAR** (Missing Completely At Random): missings are due to random events.
-	- **MAR** (Missing At Random): missings depends on other observed variables but not the missing data itself (e.g., women are more likely to report their weight than men);
-	- **MNAR** (Missing Not At Random): the probability of missingness depends on the missing values themselves (e.g., high-income earners refuse to disclose their salary and missingness is directly tied to salary amount).
-
-	Notice! dropping attributes with many MAR and MNAR CAN bias results badly!
-"""
-
-# ╔═╡ 8d047693-fc98-44da-8ba2-53b43c0ffb88
-md"""
-##### Columns Filtering
-
-$(@bind perc_missing_col Slider(0:0.05:1, show_value=true, default=0.8))
-"""
-
-
-# ╔═╡ be2a50c2-21c3-48a5-8246-28fd34cad8ed
-max_missing_instances = round(Int, perc_missing_col * n_rows)
-
-# ╔═╡ a271df5b-07a9-4580-93f6-e4ae2cac527c
-df_no_missing_columns = filter_df(df, :missing_cols; max_missing=max_missing_instances)
-
-# ╔═╡ ce62c952-23d0-4a93-b96a-db65858a54e5
-n_rows_df_no_missing_columns, n_cols_df_no_missing_columns = size(df_no_missing_columns)
-
-# ╔═╡ a4d45954-765c-42c2-913c-60bbd5a9e8f4
-md"""
-!!! success "Columns filtering report"
-	You filtered out the columns with more than the **$(round(perc_missing_col*100, digits=2))%** of missing values (that is, **$(convert(Int,max_missing_instances))** values).
-	
-	Now **$(n_cols_df_no_missing_columns)** columns remains. 
-"""
-
-# ╔═╡ 9889c086-f2d7-4878-b582-519af397271b
-md"""
-##### Rows Filtering
-
-$(@bind perc_missing_row Slider(0:0.01:1, show_value=true, default=0.8))
-"""
-
-
-# ╔═╡ f9fa4262-616a-446e-8f36-1e1f4e057b6d
-max_missing_along_row = round(Int, perc_missing_row * n_cols_df_no_missing_columns);
-
-# ╔═╡ 35e96199-c896-46a7-bc63-0853ba7bbd14
-df_no_missing = filter_df(df_no_missing_columns, :missing_rows; max_missing=max_missing_along_row)
-
-# ╔═╡ c85c719a-3c99-4c49-b056-ce59535a457f
-n_rows_df_no_missing, n_cols_df_no_missing = size(df_no_missing)
-
-# ╔═╡ 77ee75b1-5a7c-4497-91f9-433aeb7d0a2a
-md"""
-!!! success "Rows filtering report"
-	You filtered out **$(n_rows_df_no_missing_columns - n_rows_df_no_missing)** rows, that is, those containing more than the **$(round(perc_missing_row*100, digits=2))%** of missing values (i.e., **$(convert(Int,max_missing_along_row)) columns** are missing).
-
-	Now, **$(n_rows_df_no_missing)** instances remains.
-"""
-
-# ╔═╡ 5d02a4a5-7173-43ae-8422-1bf5e245529c
-md"""
-!!! info "Exercise"
-	Try to investigate the following attributes. Which one seems to be "informative"? Which are garbage, and why? Which columns are intuitively useless?
-
-	- `residence_rural_urban`
-	- `low_income` 
-	- `number_of_children`
-	- `number_of_grandchildren`
-	- `political_community_org`
-	- `hearing`
-	- `ethnicity`
-"""
-
-# ╔═╡ 3094d269-cd3d-46b6-9f32-cb99e19f3cc9
-@bind df_no_missing_colname Select(names(df_no_missing))
-
-# ╔═╡ d09c8f96-74fa-4e98-87b3-080f8d0aae02
-histogram(
-	collect(df_no_missing[:, df_no_missing_colname]), 
-	xlabel=df_no_missing_colname, 
-	ylabel="Count", 
-	title=df_no_missing_colname, 
-	legend=false
-)
-
-# ╔═╡ 147b3de2-5a64-4bfc-adc8-af8c9b5d25b8
-md"""
-# Labels Exploration
-
-The attributes `initial_euro_d` and `euro_d` states whether a patient is depressed or non-depressed, respectively at baseline and follow-up.
-
-It is important to note that the `euro_d` attribute (or the pair of the attributes above) is particularly important, since our final goal is to train machine learning predictors for this label (or, possibly, the pair).
-
-A graphical inspection of the relation between the label and other attributes can be insightful.
-"""
-
-# ╔═╡ 4bf08b0e-ab51-4799-92bc-2c0991b561d3
-md"""
-!!! note
-	Actually, `euro_d` can be considered a *feature* derived by summing together all the integer values in the `euro_d_attributes` columns (see below); if the total is greater than or equal to 4, then the patient is depressed at follow-up.
-"""
-
-# ╔═╡ 3575f98f-37b4-4504-aec0-a6e546a7fb7e
-euro_d_attributes = [
-	"depression_symptom_depression", 
-	"depression_symptom_pessimism", 
-	"depression_symptom_suicidality", 
-	"depression_symptom_guilt", 
-	"depression_symptom_sleep", 
-	"depression_symptom_interest", 
-	"depression_symptom_irritability", 
-	"depression_symptom_appetite", 
-	"depression_symptom_fatigue", 
-	"depression_symptom_concentration", 
-	"depression_symptom_enjoyment", 
-	"depression_symptom_tearfulness",
-]
-
-# ╔═╡ 590c1a09-4aac-46cc-9236-258593d16103
-md"""
-To really explore the informative content of `euro_d`, we can granularly consider the 12 contributions composing it (`euro_score_total`) and relate the resulting value with a certain `target` value.
-"""
-
-# ╔═╡ f087682f-2c34-4c5c-b098-936fd282371d
-@bind target_attribute Select(names(df_no_missing))
-
-# ╔═╡ e452edcd-8ac8-4bb7-a96a-26b2ce8d6058
-euro_score_total = [
-	sum([r[attribute] for attribute in euro_d_attributes])
-	for r in eachrow(df_no_missing)
-]
-
-# ╔═╡ 98bd33fc-526e-45c7-bbb6-ad67abe05838
-scatter(
-	euro_score_total .+ 0.12 .* randn(length(euro_score_total)),
-	df_no_missing[:, target_attribute];
-	group=df_no_missing[:, "euro_d"],
-	markerstrokewidth=0,
-	markersize=1,
-	xlabel="Euro-d depression at follow up",
-	ylabel=target_attribute,
-)
-
-# ╔═╡ 660c38a6-2ad0-4e37-a083-d08b3c1d6413
-md"""
-Finally, we try to visualize the ratio between depressed and non-depressed patients with histograms and box plots.
-"""
-
-# ╔═╡ fe25627e-3fbf-462c-a0aa-82d0179cd9bb
-@bind df_euro_colname Select(filter(n -> n != "euro_d", names(df_no_missing)))
-
-# ╔═╡ 6243c7c3-8d9f-40a7-9276-bf80c92bd242
-begin
-	df_euro_temp = dropmissing(df_no_missing, [df_euro_colname, "euro_d"])
-	col_data = collect(df_euro_temp[:, df_euro_colname])
-
-	p1 = histogram(col_data; group=df_euro_temp[:, "euro_d"], xlabel=df_euro_colname, title="Histogram")
-	p2 = boxplot(col_data; ylabel=df_euro_colname, title="Boxplot", legend=false)
-	plot(p1, p2; layout=(1, 2))
-end
-
-# ╔═╡ d7a4f151-e158-43ec-948d-3f0f98fe0729
-md"""
-At this point, we can decide whether to keep the `euro_d_attributes` or remove them and only keep the aggregated information (the label to predict).
-
-Probably, the best idea here is to just discard them. 
-"""
-
-# ╔═╡ f5fb9a1d-de7c-4a60-a3b3-6200386d44f5
-df_euro_clean = select(df_no_missing, Not(euro_d_attributes))
-
-# ╔═╡ 73b63a56-8d36-4995-8157-1838ab882aaa
-size(df_euro_clean)
-
-# ╔═╡ 623a6bdf-7e23-4511-a974-a38515f8716a
-md"""
-# Imputing Missings
-
-As we will see when training machine learning models, they generally cannot handle missing values, and we have to *impute* them.
-
-First of all, we need to separate categorical and numerical attributes.
-
-Then, in the former case, we could treat the string "Missing" as a special category or leverage mode statistics.
-
-In the second case we need numbers and we can exploit median and average statistics, other than mode. 
-"""
-
-# ╔═╡ 3a34594c-bfd1-4791-8cfb-4649b5d7f09e
-md"""
-!!! warning "Notice the change"
-	Try to move your cursor under the attribute names, in the table below.
-	Notice how **Float64?** is now sometimes updated as **CategoricalValue**.
-"""
-
-# ╔═╡ 26537045-ee8b-496f-82dc-628221894934
-df_typed = filter_df(df_euro_clean, :cast;
-	cast_threshold=10,
-	ignore_cols=["euro_d"])
-
-# ╔═╡ 4ec2c869-8b09-4b25-9bbe-101d632c096f
-numerical_attribute_names = []
-
-# ╔═╡ 8d913135-5ee6-407a-aedb-c55b68b3b70d
-categorical_attribute_names = []
-
-# ╔═╡ 340c97fe-837f-4563-a70e-1f04f9d02818
-for name in names(df_typed)
-	name == "euro_d" && continue
-	if df_typed[1,name] isa CategoricalValue
-		push!(categorical_attribute_names, name)
-		println("Categorical: $(name)")
-	else
-		push!(numerical_attribute_names, name)
-		println("Numeric: $(name)")
+# ╔═╡ a3000000-3353-11f1-90b2-21952756a80b
+data = begin
+	try
+		deserialize(SERIALIZE_PATH)
+	catch 
+		println("Something went wrong, maybe you need to change the file path?")
 	end
 end
 
-# ╔═╡ 9ea155da-c7a1-46be-afdb-7bbf1bee5020
-@bind numerical_impute_strategy Select([mode, mean, median])
 
-# ╔═╡ 5bce1728-42b6-4d11-8e67-bdcbb261f758
-for col in numerical_attribute_names
-	val = numerical_impute_strategy(df_typed[!, col])
-	df_typed[!, col] = coalesce.(df_typed[!, col], val)
-end
+# ╔═╡ cfc1ddfb-3171-41df-a319-7e55b6ac79ad
+md"""
+# Data adaptation
+In the following notebook, we are going to implement the learning process of a machine learning model (in particular, decision trees and forests).
 
-# ╔═╡ 97f45a63-5148-439f-b4bf-10d371dc357a
+The data exploration and cleaning process lives on its own, but we need to adapt the DataFrame we just deserialized in order to work with MLJ.
+
+By design, MLJ needs us to convert the attribute types from standard Julia types to the most performant **ScientificTypes**.
+"""
+
+# ╔═╡ f0753df6-d698-4649-b5fd-ac7dcb385ce8
+md"""
+!!! warning "Scientific Types"
+	**ScientificTypes.jl** is a very popular and light-weight Julia package, defining a collection of types for implementing conventions about the scientific interpretation of data.
+
+	It makes a clear distinction between the *machine type* of the Julia programming language and the *scientific type*, which reflects how one object should be *interpreted*.
+
+	For our use-case, the *Multiclass* and *Continuous* types are enough. For a list of all the available types, see [the Scientific Types documentation](https://juliaai.github.io/ScientificTypes.jl/dev/reference/#Reference).
+"""
+
+# ╔═╡ d3fdbf72-79ee-4712-8469-4d29768b4559
+y = coerce(string.(data[:, :euro_d]), Multiclass)
+# y = categorical(data[:, "euro_d"], ordered=true, levels=["no", "yes"])
+
+# ╔═╡ 43815971-fda4-4b32-abd6-77ee7df1e1d6
+md"""
+It is better to separate the rest of the data, since they require more treatment.
+"""
+
+# ╔═╡ 1295b232-f44e-415e-b69b-b6f20786da58
+X_raw = DataFrames.select(data, Not(:euro_d))
+
+# ╔═╡ 9f0ae520-5f94-4e34-bb03-f8c68a61157a
+size(X_raw)
+
+# ╔═╡ 7d268051-0758-4c20-ae25-253a2a4627e8
+schema(X_raw)
+
+# ╔═╡ d4e2b317-92b9-4f59-b63d-91d14d3af828
+md"""
+MLJ automatically inferred the correct scientific types for each attribute, and applied the conversion using the *coerce* function. 
+
+As we can see above, however, the Missing type is kept separated from Multiclass, when specifying the type of a categorical value. 
+
+Since the Multiclass scientific type explicits that there is no ordering between the values of an attribute, we can safely convert missings to a numerical value.
+"""
+
+# ╔═╡ 2ac0e4ca-7e77-47b8-b1b9-9e1ed0d1c426
 md"""
 !!! info "Exercise"
-	*In this case*, should we just keep the missing values or is it better to impute them using the mode?
-	If the latter were the case, why could we not exploit mean and median metrics?
+	In your opinion, why missings are kept separated from the Multiclass specifier?
 """
 
-# ╔═╡ 583f660f-e955-4ef0-bf04-555b1e294b7e
-function just_return_missing(_)
-	return missing
-end
-
-# ╔═╡ fb5b262b-c8f3-44ed-8c3d-96fb20ad227a
-@bind categorical_impute_strategy Select([just_return_missing, mode])
-
-# ╔═╡ 14fc7835-c63f-406e-984f-d5279640bf8e
-for col in categorical_attribute_names
-	val = categorical_impute_strategy(df_typed[!, col])
-	df_typed[!, col] = coalesce.(df_typed[!, col], val)
-end
-
-# ╔═╡ 853494bf-dab0-4c17-8b00-62960b98cd28
-md"""
-# Further filterings
-
-We proceed to remove the columns having very skewed categorical distributions, with at least a `frequency_threshold` percentage of identical values.
-"""
-
-# ╔═╡ 9bb12323-c3d8-4a40-a076-cf3c35fab32d
-@bind frequency_threshold Slider(0:0.05:1, show_value=true, default=0.6)
-
-# ╔═╡ 9bd07589-0e70-401a-aabd-11772b32aa34
-df_freq_filter = filter_df(df_typed, :frequency;
-	frequency_threshold=frequency_threshold,
-	ignore_cols=["euro_d"]);
-
-# ╔═╡ a6b4bfef-7486-493d-b4e4-e6717d34c942
-size(df_freq_filter)
-
-# ╔═╡ 62744abc-80f2-49aa-9a49-f371a4427194
-md"""
-!!! success "OK"
-	The size went from **$(size(df_typed))** to **$(size(df_freq_filter))**.
-"""
-
-# ╔═╡ 401f93f6-9253-43ba-8957-83f214fde4f0
-md"""
-### Monovariate approach
-"""
-
-# ╔═╡ 57a07a80-0aea-44c2-9d53-2f2f9d8c201b
-md"""
-We proceed to filter out specific instances being outliers for certain attributes.
-
-For didactic purposes, let us fix the *age* attribute. Given the age of a specific instance, `x`, we are going to compute its z-score: 
-
-```math 
-z = \frac{x - \mu}{\sigma}
-```
-
-The score tells us how many standard deviations a value is from the mean age.
-"""
-
-# ╔═╡ 9d51ce42-752c-46f2-87bc-c064b952e770
-LocalResource("../images/standard_deviation_diagram.png")
-
-# ╔═╡ 94eadd14-2445-4ecc-a678-e8fc981674d8
-# begin
-# 	age_column = df_ent_filter[:, name_of_numeric_attribute]
-# 	mu = mean(age_column)
-# 	sigma = std(age_column)
-# 	z = (age_column .- mu) ./ sigma
-# end
-
+# ╔═╡ a6000000-3353-11f1-90b2-21952756a80b
 begin
-	age_column = df_freq_filter[:, "age"]
-	z = zscore(age_column)
+    imputer = FillImputer()
+    mach = machine(imputer, X_raw)
+    fit!(mach)
+    X_coerced_raw = MLJ.transform(mach, X_raw)
+    schema(X_coerced_raw);
 end
 
-# ╔═╡ d88e83ce-a1d5-4b6d-9f49-061a307dbee4
-@bind z_score_threshold Slider(0.01:0.01:4, show_value=true, default=2.0)
-
-# ╔═╡ d5851387-9ceb-41ca-9e7a-e4064080e8cb
-df_no_outliers = filter_df(df_freq_filter, :zscore;
-	z_threshold=z_score_threshold,
-	ignore_cols=["euro_d"]);
-
-# ╔═╡ cca099f8-16f7-4960-bda0-ac86057be55b
-plot(
-	histogram(df_freq_filter[:, "age"]; title="age distribution", legend=false),
-	histogram(df_no_outliers[:, "age"]; title="age within $(z_score_threshold)σ", legend=false);
-	layout=(1, 2)
-)
-
-# ╔═╡ aca83632-41ae-4696-ba82-7bcbbc5c6571
-size(df_no_outliers)
-
-# ╔═╡ f7a5338f-9652-49f6-a95b-a91477e0788a
+# ╔═╡ 66ec88be-2014-40a1-a221-e8fbed52c3b7
 md"""
-### Multivariate approach
+!!! tips "From Multiclass to One-hot encoding"
+	Multiclass labels are typically stored as categorical values, and the model must be able to interpret them correctly as distinct classes rather than arbitrary text or numbers.
+
+	**It is by no means certain that a model can naturally handle Multiclass**.
+
+	A safe, general solution is... **one-hot encoding**!
+
+	It is a way of representing each category as a separate binary feature, where only one feature is "active" (i.e., set to 1) for a given observation and all others are 0. 
+
+	With one-hot encoding...
+	- we avoid introducing a false notion of ordering between the values of an attribute (as in the case of leveraging Multiclass types);
+	- it is not mandatory for the trained model to be designed for handling categorical attributes.
 """
 
-# ╔═╡ cfc63ecc-56e9-4347-b9af-122b83a2f9a3
+# ╔═╡ d0b073f2-2bba-433d-afc4-c5cc085ada62
+LocalResource("../images/onehot_encoding.png")
+
+# ╔═╡ cdcbdbae-6867-453f-bbae-c7490a2c3df2
 md"""
-As a more refined filtering strategy, let us compute the *entropy* ``H(X)`` along each column ``X = \{x_1, x_2, \ldots, x_n\}``.
-
-```math 
-H(X) = - \sum_{i=1}^{n} p(x_i)\,\log_2 p(x_i)
-```
-
-Entropy, in general, is a way to describe how much chaotic a system is from a physical point of view.
-
-In many disciplines, such as computer science, electronics, statistics and data science, we interpret entropy as a measure of how much informative a communication channel, a signal, or a distribution is.
+In a few cells, we are going to play with a particular kind of machine learning model called *decision tree*; let us see if the implementation we are going to leverage supports the Multiclass scientific type by design.
 """
 
-# ╔═╡ 35aa1f50-a2db-42c5-a080-45ec0d76ee33
-md"""
-!!! warning "Exercise"
-	We want to compute the entropy of the following distribution ``X = \{a,a,a,b,b,b,b,b,c,c\}``
+# ╔═╡ 67a333d7-4aa7-45bd-ad05-957fc87102f2
+OneHotEncoder = @load OneHotEncoder pkg=MLJTransforms
 
-	``H(X) = -(\frac{3}{10}log_2(\frac{3}{10}) + \frac{5}{10}log_2(\frac{5}{10}) + \frac{2}{10}log_2(\frac{2}{10}))=``
+# ╔═╡ 51278f4e-d554-48f6-a63f-14f3e78fee17
+ohe_mach = machine(OneHotEncoder(), X_coerced_raw)
 
-	``\quad = -(-0.52 - 0.5 - 0.46)= 1.48``
-"""
+# ╔═╡ cf3b8afb-f32d-42f1-aa7e-7dfc0ec0ef17
+ohe_mach_fitted = fit!(ohe_mach);
 
-# ╔═╡ 2380ce25-6af6-4ed3-b528-d4fd55ef4abb
-md"""
-!!! info "Exercise"
-	Tell if this sentence is correct or not.
+# ╔═╡ 4ccc6d8a-a6c3-42c5-bdcd-e489bcdb6798
+X = MLJBase.transform(ohe_mach_fitted, X_coerced_raw);
 
-	*If we compute the entropy for an attribute, and it is relatively low, then this means that the attribute is not informative and can be discarded*.
-"""
+# ╔═╡ 565c7e32-c824-41e8-a8ea-4d1e4a638c86
+size(X)
 
-# ╔═╡ 47b09493-06a9-48b0-aa52-5de51aca9e76
-hint("""
-**Entropy = how surprised you are by the data.**
-- **Entropy = 0** → all elements are the same `{a,a,a,a,a}`. You always know what comes next. No surprise.
-- **Entropy = max** → all values appear the same number of times `{a,b,c,a,b,c}`. You never know what comes next. Maximum surprise.
-The max entropy formula is:
-\$\$H_{max} = \\log_2(n)\$\$
-where **n = number of different values** in your data.
-> The higher the entropy, the more \"mixed\" your data is.
-""")
+# ╔═╡ a7000000-3353-11f1-90b2-21952756a80b
+X_ninstances, X_nattributes = size(X)
 
-# ╔═╡ b4d57562-aab5-44ee-be52-3c106e0ce170
-md"""
-Knowing the entropy of two columns, X and Y, we can compute the *mutual information* (MI):
-
-```math
-I(X, Y) = H(Y) - H(Y | X)
-```
-
-This measures how much knowing X reduces uncertainty about Y. 
-In other words, MI is a measure of the amount of information that one random variable contains about another random variable.
-
-In our scenario, the mutual information gives as an important insight about how much an attribute is useful in predicting the class label.
-"""
-
-# ╔═╡ 85a27e1d-4635-46c7-bd14-89a6e6f088f8
-md"""
-!!! warning "Exercise"
-	We want to compute the mutual information between ``X = \{a,a,a,b,b,b,b,b,c,c\}`` and ``Y = \{0, 0, 1, 1, 1, 1, 0, 1, 0, 0\}``.
-
-	``H(Y) = -(\frac{4}{10}log_2(\frac{4}{10}) + \frac{6}{10}log_2(\frac{6}{10}))= 0.97``
-
-	``H(Y|X=a) = -(\frac{2}{3}log_2(\frac{2}{3}) + \frac{1}{3}log_2(\frac{1}{3}))= 0.91``
-
-	``H(Y|X=b) = -(\frac{1}{5}log_2(\frac{1}{5}) + \frac{4}{5}log_2(\frac{4}{5}))= 0.72``
-
-	``H(Y|X=c) = -(\frac{2}{2}log_2(\frac{2}{2}) = 0``
-
-	``H(Y|X) = P(X=a) * H(Y|X=a) + ... + P(X=c) * H(Y | X=c)``
-
-	``\quad = 0.3 * 0.91 + 0.5 * 0.722 + 0 = 0.636``
-
-	``I(X, Y) = 0.970 - 0.636 = 0.334``
-"""
-
-# ╔═╡ 240443a3-42f2-4baf-b46b-621b97d5cd51
-mi_dict = Dict(
-	name => mutual_information(
-		df_no_outliers[:, name], 
-		df_no_outliers[:, "euro_d"];
-	) 
-	for name in names(df_no_outliers)
-	if name != "euro_d"
-)
-
-# ╔═╡ 7e3de156-3690-4ec2-b138-093f239f4a32
-mi_dict_sorted = sort(
-	collect(mi_dict),
-	by=x -> x[2]
-)
-
-# ╔═╡ 2ea7a28e-3a74-4011-98f4-1c6a8cc639dd
-@bind top_k_print Slider(1:1:25, show_value=true, default=10)
-
-# ╔═╡ 28e85f18-0f54-459d-989c-6a971f25b15f
+# ╔═╡ b0000000-3353-11f1-90b2-21952756a80b
 begin
-	println("Top $(top_k_print) mutual information:")
-    for (col, ent) in reverse(mi_dict_sorted)[1:top_k_print]
-        println("$col → $ent")
-    end
+    (X_train, X_test), (y_train, y_test) = partition(
+        (X, y), 0.7;
+
+		# sometimes, data is ordered via a criterion we do not want to assume
+		shuffle=true,
+
+		# we need this to keep Xs and ys glued pairwise
+		multi=true,
+
+		# for reproducibility
+		rng=RNG_SEED
+    )
 end
 
-# ╔═╡ 0207e0c5-9a8a-4daf-942c-edc54aac352f
-begin
-	println("Top $(top_k_print) with less mutual information:")
-    for (col, ent) in mi_dict_sorted[1:top_k_print]
-        println("$col → $ent")
-    end
-end
-
-# ╔═╡ 92a4c81a-8bd4-457a-86da-96be85c3fb89
-@bind mi_threshold Slider(0.0:0.001:0.03, show_value=true, default=0.01)
-
-# ╔═╡ b0b97508-39a1-4f91-9975-188bbae4cb1b
-begin
-	p = plot(
-		last.(mi_dict_sorted),
-		xlabel="i-th attribute with lower mutual information",
-		ylabel="mutual information",
-		title="Mutual information elbow plot",
-		label="m.i. with class",
-		ylims=(0, 0.1),
-		legend=:topleft
-	)
-	
-	hline!(
-		p, 
-		[mi_threshold], 
-		color=:red, 
-		linewidth=2, 
-		# linestyle=:dot, 
-		label="cutoff"
-	)
-end
-
-# ╔═╡ 3dc492e3-533d-46c0-bb4f-65496e87961d
-df_mi_filter = filter_df(df_no_outliers, :information;
-    information_dictionary=mi_dict,
-	information_threshold=mi_threshold,
-	ignore_cols=["euro_d"]);
-
-# ╔═╡ da8e28da-c864-4eeb-b163-e3349be49567
-size(df_mi_filter)
-
-# ╔═╡ 9eee2f67-92b8-48c2-b502-73efa704562c
+# ╔═╡ 6abe7cf4-231c-4f75-839f-6b80891d3088
 md"""
-# Serialization
+!!! warning "Unbalanced classes"
+	If some labels/classes appear much more frequently than others, the model may become biased toward predicting the majority class. 
 
-Now, we want to save the final result from which we want to learn machine learning models.
+	In that case, a naive classifier can achieve deceptively high accuracy simply by always predicting the most common label.
 
-We use the verb *serialize* instead of *save*, because we decide to write a binary file which we can read from another Pluto.jl notebook, keeping a perfect snapshot of our clean data frame. 
+	Later, we are going to leverage a smarter technique to partition data, and we will we will combine accuracy with metrics that are not thrown off by class imbalance.
 """
 
-# ╔═╡ 12533c7b-ca7f-4960-b969-77ae3f0e9063
+# ╔═╡ c70c1204-60a1-4ecf-b0a1-8a60938686ff
+y_train_yes, y_train_no = values(countmap(y_train));
+
+# ╔═╡ d9bac238-70b3-43a0-95c5-99fb5ae96b92
+y_test_yes, y_test_no = values(countmap(y_test));
+
+# ╔═╡ 57d8be18-2370-4fbc-bc69-eb54898e9dff
+bar(["train", "test"], 
+	[[y_train_no, y_train_yes], [y_test_no, y_test_yes]],
+	title="Train set class distribution",
+	label=["no" "yes"])
+
+# ╔═╡ 6b94d7db-7f2f-4471-8999-b138b6b0c448
 md"""
-!!! tip
-	We would like our "screenshot" to have an informative name, summarizing the whole data processing with an encoding.
+# Training (first approach)
 
-	We should inject the following threshold values in the name of the file:
+We proceed to leverage the training data to *induce a decision tree*.
 
-	`max_missing_instances`
+Actually, we define 10 different trees with different settings of their *hyperparameters*; then, we select one specific tree with a slider and proceed to train it.
 
-	`max_missing_along_row` 
-
-	`frequency_threshold` 
-	
-	`entropy_threshold` 
-	
-	`z_score_threhsold`
+Note that the settings we propose here are trivial: we only change the max_depth of each tree, from one to ten. Later, we are going to make the training pipeline more robust, exploring different parameterizations automatically
 """
 
-# ╔═╡ f59ae421-e01c-43f1-9e15-6805f96aa746
-filename = "share_clean_mc_$(max_missing_instances)_mr_$(max_missing_along_row)_ft_$(frequency_threshold)_mit_$(mi_threshold)_zs_$(z_score_threshold).jls"
+# ╔═╡ 64d0496d-51f0-48f1-9068-f34328d7a857
+md"""
+!!! success "Decision trees"
+	A decision tree makes predictions by applying a sequence of if–else rules on the attribute values.
 
-# ╔═╡ b391021e-719e-412f-b13d-637fc5bcbe0c
-SERIALIZE_PATH = joinpath(DATASET_FOLDER, filename)
+	- Each *internal node* contains a condition (e.g., age > 65);
+	- each *branch* corresponds to the outcome of that condition (i.e., true or false);
+	- each *leaf* node contains the final prediction (e.g., the string "yes" or "no").
 
-# ╔═╡ 639e7cb7-fb43-4a26-9692-29a668f5d430
-function save_files()
-	# this is a little trick to create a new file
-	open(SERIALIZE_PATH, "w") do f
-	    println(f, "")
+	Inducing a decision tree means to compute the most convenient attribute-value pairs onto which to perform the various split and their ordering. 
+
+	All the induction is governed by measuring how much "information is gained" when choosing a certain split; that notion can be intimately connected to the information entropy measure.
+"""
+
+# ╔═╡ 76edf51c-7ca6-49d1-85e8-bab1b77c04c2
+LocalResource("../images/decision_tree.png")
+
+# ╔═╡ b1000000-3353-11f1-90b2-21952756a80b
+begin
+    DecisionTreeClassifier = @load DecisionTreeClassifier pkg=DecisionTree verbosity=0
+end
+
+# ╔═╡ 99f3b672-b24e-4d09-a1bb-cc4b2f928347
+md"""
+The two commands below demonstrate that the specific implementation of decision tree coming from `DecisionTree.jl` is not compatible with `Multiclass` scientific type (whilst the one coming from `BetaML` could be fine by-design!).
+"""
+
+# ╔═╡ a1ee0585-0fb7-4019-ae32-fc2fbf9588b3
+MLJ.models(matching(X_raw, y))
+
+# ╔═╡ c9999307-8118-4b39-b74f-8296685035b6
+for model in MLJ.models(matching(X_raw, y))
+	if model.name == "DecisionTreeClassifier"
+		println(model)
 	end
+end
 
-	println("Writing to $(SERIALIZE_PATH)")
+# ╔═╡ d8b09a29-2f37-4ff5-af0f-b7c03258c8af
+MLJ.models(matching(X_train, y_train))
+
+# ╔═╡ 3c57b20b-42c0-464e-be47-ce653dfff359
+for model in MLJ.models(matching(X_train, y_train))
+	if model.name == "DecisionTreeClassifier"
+		println(model)
+	end
+end
+
+# ╔═╡ 125b244f-762a-449a-ac71-daa428650f81
+md"""
+!!! info "Exercise"
+	Select the type `MLJDecisionTreeInterface.DecisionTreeClassifier` and click the "Live docs" in the bottom-right button.
+
+	We want to answer two questions:
+	1. how is it called the specific algorithm implemented by `DecisionTrees.jl` for inducing decision tree models?
+	2. which hyperparameters are available?
+"""
+
+# ╔═╡ df689893-a895-4b3e-85a2-5364274bf575
+model = MLJDecisionTreeInterface.DecisionTreeClassifier(
+	max_depth = 10,
+	min_samples_leaf = 1,
+	min_samples_split = 2,
+	min_purity_increase = 0.0,
+	n_subfeatures = 0.0,
+	post_prune = false,
+	merge_purity_threshold = 0.9,
+	rng = RNG_SEED
+)
+
+# ╔═╡ b5000000-3353-11f1-90b2-21952756a80b
+begin
+    mach_dt = machine(model, X_train, y_train)
+    fit!(mach_dt)
+    y_prob_dt = MLJ.predict(mach_dt, X_test)
+    y_pred_dt = mode.(y_prob_dt)
+    cm_dt = confusion_matrix(y_pred_dt, y_test)
+end
+
+# ╔═╡ 1f8b37ed-336b-4f6e-9d47-643bdf5295d7
+md"""
+To assess the quality of the trained model, we leverage a *confusion matrix* (see below).
+
+In general, we are interested in three metrics: *accuracy*, *precision* and *recall* (or *sensitivity*, as indicated below).
+
+**Accuracy** tells us how often the model is right across all classes; it is about the overall proportion of correct predictions but **can be misleading when data is unbalanced**.
+
+**Precision** is the proportion of predicted positives that are actually correct; this indicates "how reliable" positive predictions are.
+
+**Recall** is the proportion of actual positives that are captured; if the recall is low, then just a few positives are captured.
+"""
+
+# ╔═╡ c8ac4328-8f16-4033-baec-2b7861c4010f
+LocalResource("../images/confusion_matrix.png")
+
+# ╔═╡ ac27ff8d-dacb-4cae-b7e3-cc70135feaa6
+md"""
+!!! info "Exercise"
+	What happens when the recall is low and the precision is high?
+
+	What happens when the converse holds?
+"""
+
+# ╔═╡ b6000000-3353-11f1-90b2-21952756a80b
+cm_dt
+
+# ╔═╡ b7000000-3353-11f1-90b2-21952756a80b
+md"**Accuracy Decision Tree (test set):** $(round(accuracy(cm_dt), digits=4))"
+
+# ╔═╡ edc4f8f8-12b9-45b2-bbbe-32736dc6fbd3
+md"**Precision Decision Tree (test set):** $(round(precision(cm_dt), digits=4))"
+
+# ╔═╡ 948beef6-c940-4852-9500-76fb521aa437
+md"**Recall Decision Tree (test set):** $(round(recall(cm_dt), digits=4))"
+
+# ╔═╡ d5458851-5414-484c-82cc-4e63b5ec06ef
+md"""
+!!! warning "Cross validation"
+	Beware: the performance of our trained model could depend on the partitioning of data in the training and test set.
+
+	To remove luck from the process we can rely on a more robust *training schema*, called *cross validation*.
+
+	Essentially, **cross validation** is about splitting the original data into multiple folds and repeatedly training and testing the model on different folds.
+
+	An important variant, in the context of this work, is **stratified cross validation**, in which each fold preserves the class distribution of the original dataset; this guarantees a stable evaluation of the model (there are )
+	Stratified cross validation  follows the same procedure but ensures that each fold preserves the class distribution of the original dataset.
+"""
+
+# ╔═╡ d3227330-0101-4253-838e-6f916fbbd18c
+LocalResource("../images/cross_validation.png")
+
+# ╔═╡ fd2a40f9-20f1-44a7-8231-9796dffd0922
+LocalResource("../images/stratified_cross_validation.png")
+
+# ╔═╡ b8000000-3353-11f1-90b2-21952756a80b
+begin
+    mach_cv = machine(model, X, y)
+    acc_cv = evaluate!(
+        mach_cv;
+        resampling = StratifiedCV(nfolds=10, shuffle=true, rng=RNG_SEED),
+        measures   = [accuracy],
+        verbosity  = 0
+    )
+    acc_cv
+end
+
+# ╔═╡ b9000000-3353-11f1-90b2-21952756a80b
+md"""
+# Hyperparameter tuning
+
+To avoid arbitrary settings of hyperparameters, we can rely on a systematic procedure called *grid search* (i.e., we try all the possible combinations considering many domains).
+"""
+
+# ╔═╡ c0000000-3353-11f1-90b2-21952756a80b
+ begin
+     max_depth_range         = range(model, :max_depth,          lower=2, upper=10)
+     min_samples_leaf_range  = range(model, :min_samples_leaf,   lower=1, upper=5)
+     min_samples_split_range = range(model, :min_samples_split,  lower=2, upper=10)
+ 
+     tuned_tree = TunedModel(
+		model      = MLJDecisionTreeInterface.DecisionTreeClassifier(),
+        resampling = StratifiedCV(nfolds=10, shuffle=true),
+        range      = [
+			max_depth_range, 
+			min_samples_leaf_range, 
+			min_samples_split_range
+		 ],
+        measure    = accuracy,
+        tuning     = RandomSearch()
+     )
+ 
+     mach_tuned = machine(tuned_tree, X, y)
+     fit!(mach_tuned, verbosity=0)
+ 
+     y_prob_tuned = MLJ.predict(mach_tuned, X_test)
+     y_pred_tuned = mode.(y_prob_tuned)
+     cm_tuned     = confusion_matrix(y_pred_tuned, y_test)
+ end
+
+# ╔═╡ c2000000-3353-11f1-90b2-21952756a80b
+md"**Accuracy Tuned DT (test set):** $(round(accuracy(cm_tuned), digits=4))"
+
+# ╔═╡ 5b76d562-5472-416b-b63c-1fef7c81cd5f
+md"**Precision Tuned DT (test set):** $(round(precision(cm_tuned), digits=4))"
+
+# ╔═╡ 58ee4d37-9fa9-4f09-9d37-15d9f69d5ac2
+md"**Recall Tuned DT (test set):** $(round(recall(cm_tuned), digits=4))"
+
+# ╔═╡ 98213623-eaec-4928-bfea-c0f0c4f04f90
+md"""
+!!! tip "☀️ Model inspection with Sole ☀️"
+	Try to describe a typical path in the decision tree below.
+
+	Now it may look a little bit cumbersome, but we are going to definitely simplify this theory in a moment, leveraging Sole!
+"""
+
+# ╔═╡ 5117a6c9-b090-4d85-9cbc-9500beb09f7e
+SoleModels.solemodel(fitted_params(mach_dt).tree)
+
+# ╔═╡ c3000000-3353-11f1-90b2-21952756a80b
+md"## Random Forest"
+
+# ╔═╡ 2b686c03-03df-41c4-a78f-71aae61ad5ff
+LocalResource("../images/random_forest.png")
+
+# ╔═╡ c4000000-3353-11f1-90b2-21952756a80b
+RandomForestClassifier = @load RandomForestClassifier pkg=DecisionTree
+
+# ╔═╡ 9410b8b8-10f0-460b-b46c-a7715cee1fe2
+possible_tree_depths  = collect(1:10)
+
+# ╔═╡ b6bc4920-7538-4df9-8295-4730db58be77
+possible_tree_numbers = collect(2:20)
+
+# ╔═╡ b03265a4-0776-41c9-846a-5e74b459814d
+function set_hyperparameters(directions::Vector)
+	return combine() do Child
+		inputs = [
+			if name == "max_depth" || name == "n_trees"
+				md""" $(name): $(
+					Child(name, Slider(1:20 , show_value = true, default=10))
+				)"""
+			else
+				md""" $(name): $(
+					Child(name, Slider(1:10, show_value = true, default=3))
+				)"""
+			end
+			
+			for name in directions
+		]
+		
+		md"""
+		#### Forest hyperparameters
+		$(inputs)
+		"""
+	end
+end
+
+# ╔═╡ 1d0cc054-5c38-46d5-9033-4872d265c0d8
+@bind trees_param set_hyperparameters(["max_depth", "min_samples_leaf", "min_samples_split", "n_trees"]) 
+
+# ╔═╡ c5000000-3353-11f1-90b2-21952756a80b
+begin
+    forest = MLJDecisionTreeInterface.RandomForestClassifier(
+        max_depth         = 3,
+        min_samples_leaf  = trees_param.min_samples_leaf,
+        min_samples_split = trees_param.min_samples_split,
+        n_trees           = 3
+    )
+
+    mach_rf = machine(forest, X_train, y_train)
+    fit!(mach_rf, verbosity=0)
+
+    y_prob_rf = MLJ.predict(mach_rf, X_test)
+    y_pred_rf = mode.(y_prob_rf)
+    cm_rf     = confusion_matrix(y_pred_rf, y_test)
+end
+
+# ╔═╡ c7000000-3353-11f1-90b2-21952756a80b
+md"**Accuracy Random Forest:** $(round(accuracy(cm_rf), digits=4))"
+
+# ╔═╡ ca74043d-78ae-47a1-a58a-a8d349313fda
+md"**Precision Random Forest:** $(round(precision(cm_rf), digits=4))"
+
+# ╔═╡ f147f0f9-5e64-4413-9142-c0ec6d081506
+md"**Recall Random Forest:** $(round(recall(cm_rf), digits=4))"
+
+# ╔═╡ bf81a25b-cbbe-4f61-8fe2-d558f13aeb5d
+md"""
+| Modello | Accuracy | Precision | Recall |
+|---------|----------|-----------|--------|
+| Decision Tree (depth=10) | $(round(accuracy(cm_dt), digits=4)) | $(round(precision(cm_dt), digits=4)) | $(round(recall(cm_dt), digits=4)) |
+| Decision Tree Tuned | $(round(accuracy(cm_tuned), digits=4)) | $(round(precision(cm_tuned), digits=4)) | $(round(recall(cm_tuned), digits=4)) |
+| Random Forest | $(round(accuracy(cm_rf), digits=4)) | $(round(precision(cm_rf), digits=4)) | $(round(recall(cm_rf), digits=4)) |
+"""
+
+# ╔═╡ 6fa4955d-c170-4e43-8cf6-0158cc08f60a
+begin
+    df_max_depth_range       = range(model, :max_depth,         lower=2, upper=4)
+    df_min_samples_leaf_range  = range(model, :min_samples_leaf,  lower=1, upper=2)
+    df_min_samples_split_range = range(model, :min_samples_split, lower=2, upper=4)
+
+    tuned_forest = TunedModel(
+        model      = MLJDecisionTreeInterface.RandomForestClassifier(),
+        resampling = CV(nfolds=3), 			# low, for keeping the computation light
+        range      = [df_max_depth_range, df_min_samples_leaf_range, df_min_samples_split_range],
+        measure    = accuracy,
+        tuning     = RandomSearch(),
+        n          = 8                      # low, for keeping the computation light
+    )
+
+    df_mach_tuned = machine(tuned_forest, X, y)
+    fit!(df_mach_tuned, verbosity=0)
+
+    df_y_prob_tuned = MLJ.predict(df_mach_tuned, X_test)
+    df_y_pred_tuned = mode.(df_y_prob_tuned)
+    df_cm_tuned     = confusion_matrix(df_y_pred_tuned, y_test)
+end
+
+# ╔═╡ 524f77c3-ebe2-4e7d-bd00-538c3de83cd0
+begin
+	featurenames_decisiontree = MLJ.report(mach_dt).features
+	classnames_decisiontree = sort(MLJ.report(mach_dt).classes_seen)
 	
-    serialize(SERIALIZE_PATH, df_mi_filter)
+	sole_decisiontree =  SoleModels.solemodel(
+		fitted_params(mach_dt).tree;
+		featurenames = featurenames_decisiontree, 
+		classlabels = classnames_decisiontree
+	)
 end
 
-# ╔═╡ 5489432a-68e4-49b1-aa70-d2ee410d5dd1
-md"""
-!!! tips "Ready to go!"
-	Press the slider below to finally save your dataset.
-	We strongly suggest pressing the slider again a few seconds later, to avoid saving a new dataset every time this notebook is updated.
-"""
-
-# ╔═╡ c709b580-e26a-42be-a5c1-bb76833efd65
-@bind enable_saving Switch(; default=false)
-
-# ╔═╡ 9cac84da-b466-47ec-bf66-1ab648755c9f
-if enable_saving == true
-	save_files()
+# ╔═╡ d8b150a0-261a-47fc-8ad5-c071f57c2077
+begin
+    featurenames_tunedtree = MLJ.report(mach_tuned).best_report.features
+    classnames_tunedtree = sort(MLJ.report(mach_tuned).best_report.classes_seen)
+	
+    sole_tunedtree = SoleModels.solemodel(
+        fitted_params(mach_tuned).best_fitted_params.tree;
+        featurenames = featurenames_tunedtree,
+        classlabels = classnames_tunedtree
+    )
 end
 
-# ╔═╡ 4a5dd797-5fb3-4074-9c7e-02c8db096777
+# ╔═╡ 8692525e-a66d-4413-8722-80b9f1bf436a
+begin
+    featurenames_randomforest = MLJ.report(mach_rf).features
+    classnames_randomforest = sort(MLJ.report(mach_dt).classes_seen) 
+	
+    sole_randomforest = SoleModels.solemodel(
+        fitted_params(mach_rf).forest;
+        featurenames = featurenames_randomforest,
+        classlabels = classnames_randomforest
+    )
+end
+
+# ╔═╡ 9319d70b-e1ae-493f-92bf-42745840411a
 md"""
-# A final exercise about leveraging LLMs
+# PostHoc Analysis
 
-### First of all, an important definition: Epistemia
-*Epistemia* is a neologism describing the illusion of having knowledge created by interacting with generative AI, where **fluent**, **coherent**, and **convincing** text makes information seem reliable even when it may **lack a real factual foundation**.
-
-Epistemia is about people confusing the appearance of understanding produced by large language models with verified knowledge.
-
-In other words, epistemia is when the appearance of knowledge replaces genuine epistemic reliability.
+Now that we trained three variations of decision trees from our data, we are interested in *compress their representation* and *extract the essential rules* from them.
 """
 
-# ╔═╡ 660e2581-0636-4162-9477-855dcd6030b9
+# ╔═╡ 7008b6f7-806c-4a13-8010-8f8d1537b258
+begin 
+	# from now onwards, it is better to interpret our DataFrames as Matrixes and Vectors
+	X_train_mat = Matrix(X_train);
+	X_test_mat  = Matrix(X_test);
+
+    X_train_mat_f = Matrix{Float64}(X_train);
+    X_test_mat_f  = Matrix{Float64}(X_test);
+		
+    y_train_str = string.(y_train[:, 1]);
+    y_test_str  = string.(y_test[:, 1]);
+end
+
+# ╔═╡ cdaf88f6-d1a6-4a77-a9f6-c68eca79d364
 md"""
-!!! info "A first reflection"
-	1. Before the advent of large generative models, what was the most similar phenomenon with respect to epistemia?
+# Model compression
 
-	2. What is the *crucial* aspect that changed, from the idea of your previous answer to nowadays?
+Once a model has been trained, it can be quite large and complex, especially in the case of a random forest, which is an ensemble of many trees.
 
-	3. How can we defend ourselves from epistemia?
+While this complexity contributes to predictive accuracy, it can make the model hard to interpret and computationally expensive to consult in practice.
+
+To mitigate the problem, we can exploit **model compression** for producing new, smaller models that approximate the behavior of the original one as closely as possible, while being significantly simpler in structure.
+
+In particular, here we leverage the novel **Orca** (Optimized aRbitrary-ensemble Compression Algorithm), which is based on [evolutionary optimization](https://en.wikipedia.org/wiki/Evolutionary_algorithm). 
+
+!!! tip "The three complexity dimensions"
+	Orca optimizes over three *complexity dimensions*:
+
+	- size: the total number of nodes in a tree;
+	- depth: the maximum number of conditions that must be checked to reach a prediction;
+	- dimensionality: the number of unique variables leveraged across all splits.
+
+	These three dimensions can be optimized both individually and in combinations.
 """
 
-# ╔═╡ 33024b81-50ac-45e4-8168-0a842c4d522d
+# ╔═╡ 9955fa39-3aae-4cf8-81e6-a2e3ce7d5615
+# with :size_depth we ask to minimize both size and depth simultaneously 
+compressed_size_depth = SolePostHoc.Orca.compression(
+    sole_randomforest, :size_depth, X_train_mat_f, y_train_str;
+    population_size=3, n_generations=3
+)
+
+# ╔═╡ b7b72708-4f7a-4a5b-a898-b0487b4ef44e
+compressed_only_depth = SolePostHoc.Orca.compression(
+    sole_randomforest, :depth, X_train_mat_f, y_train_str;
+    population_size=3, n_generations=3
+)
+
+# ╔═╡ 7f731578-78c6-4c06-8cf8-a121fb7c0345
+# with :full_dimensional we take into account all the three complexity dimensions
+compressed_full_dimensional = SolePostHoc.Orca.compression(
+    sole_randomforest, :full_dimensional, X_train_mat_f, y_train_str;
+    population_size=3, n_generations=4
+)
+
+# ╔═╡ 69a04f86-9c42-49b1-92e3-02aaed3fd97b
 md"""
-### Now, let us challenge the LLMs
-In the following section, we are going to ask for clarification to ChatGPT, tackling many aspects we studied during the lesson.
+# Model explanation
+
+Although a model like a random forest can potentially be interpretable (i.e., easy to explain, discuss and understand), it often reveals itself as a *black box*, which is very hard for humans to read.
+
+Our goal, here, is to produce human-readable and highly descriptive sets of decisions which are characteristics of the whole forest.
+
+!!! success "Rule extractors in SolePostHoc"
+	| Extractor | Strategy |
+	|-----------|----------|
+	| `InTreesRuleExtractor` | Enumerates paths directly from the trees in the forest |
+	| `LumenRuleExtractor` | Optimizes rules for *coverage* and *compactness* |
+	| `BATreesRuleExtractor` | Builds an approximating single tree from the forest |
+	| `REFNERuleExtractor` | Refines rules by focusing on misclassified instances |
+	| `TREPANRuleExtractor` | Queries the forest as an oracle to induce a new tree |
+
+
 """
 
-# ╔═╡ c3af66c9-0998-4952-9e5b-91076763a922
+# ╔═╡ 5723b1e8-b594-4893-b71d-3df41fe49393
+md"""
+These are some of the rule extractors available via Sole.jl.
+"""
+
+# ╔═╡ 0946aa01-90cf-4747-915b-f6806995a36b
+begin
+	intrees_extractor = InTreesRuleExtractor(min_coverage=1.0)
+	lumen_extractor = LumenRuleExtractor()
+	batrees_extractor = BATreesRuleExtractor()
+	refne_extractor = REFNERuleExtractor()
+	trepan_extractor = TREPANRuleExtractor()
+end
+
+# ╔═╡ c4aa241b-d4da-4b08-9143-9ff2754564cc
+md"""
+### Start the 💡 Lumen extractor 💡
+"""
+
+# ╔═╡ fa4f5fc2-aa91-484a-9544-f09a36857db1
+@bind start_lumen_extractor Switch(; default=false)
+
+# ╔═╡ 7ebaad1b-0f94-4649-8630-f5890bff2fed
+if start_lumen_extractor
+	extracted_rules_w_lumen = RuleExtraction.extractrules(
+		lumen_extractor,
+		sole_randomforest;
+		minimization_scheme=:abc
+	)
+	
+	extracted_rules_w_lumen
+end
+
+# ╔═╡ 3f87b4ca-a1ca-4622-8ed6-edc18480dc63
+md"""
+### Start Trepan extractor
+"""
+
+# ╔═╡ 1d3eb7ab-3765-485e-bfdd-0ca236004e75
+@bind start_trepan_extractor Switch(; default=false)
+
+# ╔═╡ 8d28f8b0-1165-4ed2-bd3e-a09741363e83
+if start_trepan_extractor
+	extracted_rules_w_t = RuleExtraction.extractrules(
+		trepan_extractor, 
+		sole_randomforest, 
+		X_test_mat
+	)
+end
+
+# ╔═╡ f93ecd9e-3cad-4afd-a6e3-fbabf9f347a5
+md"""
+### Start Intrees extractor
+"""
+
+# ╔═╡ bfdb2bfd-8c23-4f04-b60e-b60ff5a927fd
+@bind start_intrees_extractor Switch(; default=false)
+
+# ╔═╡ 866f833d-dfc5-43a0-8dd5-a58679115f2b
+if start_intrees_extractor
+	extracted_rules_w_intrees = RuleExtraction.extractrules(
+        intrees_extractor,
+        sole_randomforest,
+        DataFrame(X_test),
+        y_test_vec
+    )
+end
+
+# ╔═╡ eb0c334f-2be9-45ca-b4d6-b747396d9a6d
+md"""
+# Rule explanation 
+"""
+
+# ╔═╡ b48b9625-22bf-4d64-bf88-5c6d923e196d
+try
+	pretty_print_decision_set(extracted_rules_w_lumen)
+catch e
+	if e isa UndefVarError
+		print("You first need to execute the cell 'Start the 💡 Lumen extractor 💡'")
+	end
+end
+
+
+# ╔═╡ bbfdc551-476d-4d28-b676-f5477fc8c12b
+md"""
+# Challenging the LLMs
+In the cells below, we repeat the same prompting exercise as in the first notebook, asking ChatGPT to clarify some hypothetical doubts related to this lesson.
+"""
+
+# ╔═╡ af48c01f-a98d-43c2-9a14-d4c780f86590
 md"""
 ### Prompt #1
+
+This is extremely naïve.
+
 ```
-I want to analyse the SHARE European dataset.
-Tell me the meaning of these variable names.
-
-"mergeid", "age_int", "hhsize", "dn042_", "dn503_", "dn014_", "dn034_", "iv009_", "hh022_", "hh025_", "hh017e", "sp002_", "sp008_", "ch001_", "ch021_", "ep005_", "co007_", "ac035d1", "ac035d4", "ac035d5", "ac035d7", "ac035d8", "ac035d9", "ac035d10", "ac035dno", "ac012_", "ac014_", "ac015_", "ac016_", "ac017_", "ac018_", "ac019_", "ac020_", "ac021_", "ac022_", "ac023_", "ac024_", "ac025_", "it003_", "euro1", "euro2", "euro3", "euro4", "euro5", "euro6", "euro7", "euro8", "euro9", "euro10", "euro11", "euro12", "bmi2", "phactiv", "hhid5", "mergeidp5", "coupleid5", "country", "language", "ph003_", "ph004_", "ph005_", "ph006d1", "ph006d2", "ph006d3", "ph006d4", "ph006d5", "ph006d6", "ph006d10", "ph006d11", "ph006d12", "ph006d13", "ph006d14", "ph006d15", "ph006d16", "ph006d18", "ph006d19", "ph006d20", "ph006dno", "ph006dot", "ph008d1", "ph008d2", "ph008d3", "ph008d4", "ph008d5", "ph008d6", "ph008d7", "ph008d8", "ph008d9", "ph008d10", "ph008d11", "ph008d12", "ph008d13", "ph008d14", "ph008d15", "ph008d16", "ph008d17", "ph008d18", "ph008d19", "ph008d20", "ph008d21", "ph008d22", "ph008dot", "ph009_1", "ph009_2", "ph009_3", "ph009_4", "ph009_5", "ph009_6", "ph009_10", "ph009_11", "ph009_12", "ph009_13", "ph009_14", "ph009_15", "ph009_16", "ph009_18", "ph009_19", "ph009_20", "ph009_other", "ph011d1", "ph011d2", "ph011d3", "ph011d4", "ph011d6", "ph011d7", "ph011d8", "ph011d9", "ph011d10", "ph011d11", "ph011d13", "ph011d14", "ph011d15", "ph011dno", "ph011dot", "ph012_", "ph013_", "ph041_", "ph043_", "ph044_", "ph045_", "ph046_", "ph048d1", "ph048d2", "ph048d3", "ph048d4", "ph048d5", "ph048d6", "ph048d7", "ph048d8", "ph048d9", "ph048d10", "ph048dno", "ph049d1", "ph049d2", "ph049d3", "ph049d4", "ph049d5", "ph049d6", "ph049d7", "ph049d8", "ph049d9", "ph049d10", "ph049d11", "ph049d12", "ph049d13", "ph049dno", "ph054_", "ph061_", "ph065_", "ph066_", "ph071_1", "ph071_2", "ph071_3", "ph071_4", "ph072_1", "ph072_2", "ph072_3", "ph072_4", "ph073_1", "ph073_2", "ph073_3", "ph073_4", "ph074_1", "ph074_2", "ph074_3", "ph074_4", "ph075_1", "ph075_2", "ph075_3", "ph075_4", "ph076_1", "ph076_2", "ph076_3", "ph076_4", "ph077_1", "ph077_2", "ph077_3", "ph077_4", "ph080d1", "ph080d2", "ph080d3", "ph080d4", "ph080d5", "ph080d6", "ph080d7", "ph080d8", "ph080d9", "ph080d10", "ph080d11", "ph080d12", "ph080d13", "ph080d14", "ph080d15", "ph080d16", "ph080d17", "ph080d18", "ph080d19", "ph080d20", "ph080d21", "ph080d22", "ph080dot", "ph084_", "ph085_", "ph087d1", "ph087d2", "ph087d3", "ph087d4", "ph087d5", "ph087d6", "ph087d7", "ph088_", "ph089d1", "ph089d2", "ph089d3", "ph089d4", "ph089dno", "ph090_", "ph091_", "ph092_", "ph094_", "ph095_", "mh037_", "hc012_", "hc029_", "hc114_", "hc115_", "hc125_", "br015_", "br016_", "isced1997_r", "wave", "initial_euro_d", "euro_d", "hhid6", "mergeidp6", "coupleid6", "ph006d21", "ph009_21", "ph049d14", "ph049d15", "ph050_", "ph051_", "ph059d1", "ph059d2", "ph059d3", "ph059d4", "ph059d5", "ph059d6", "ph059d7", "ph059d8", "ph059d9", "ph059d10", "ph059dno", "ph059dot", "ph082_", "ph690d1", "ph690d2", "ph690d3", "ph690d4", "hhid7", "mergeidp7", "coupleid7", "ph745_"
+Consider this variables, coming from a dataset I am studying: Suggest me a machine learning training pipeline for a dataset having these header: age_int,hhsize,dn042_,dn503_,dn014_,dn034_,iv009_,hh022_,hh025_,hh017e,sp002_,sp008_,ch001_,ch021_,ep005_,co007_,ac035d1,ac035d4,ac035d5,ac035d7,ac035d8,ac035d9,ac035d10,ac035dno,ac012_,ac014_,ac015_,ac016_,ac017_,ac018_,ac019_,ac020_,ac021_,ac022_,ac023_,ac024_,ac025_,it003_,euro1,euro2,euro3,euro4,euro5,euro6,euro7,euro8,euro9,euro10,euro11,euro12,bmi2,phactiv,country,language,ph003_,ph004_,ph005_,ph006d1,ph006d2,ph006d3,ph006d4,ph006d5,ph006d6,ph006d10,ph006d11,ph006d12,ph006d13,ph006d14,ph006d15,ph006d16,ph006d18,ph006d19,ph006d20,ph006dno,ph006dot,ph008d2,ph008d3,ph008d4,ph008d5,ph008d6,ph008d7,ph008d8,ph008d9,ph008d10,ph008d11,ph008d12,ph008d13,ph008d14,ph008d15,ph008d16,ph008d17,ph008d18,ph008d19,ph008d20,ph008d21,ph008d22,ph008dot,ph011d1,ph011d2,ph011d3,ph011d4,ph011d6,ph011d7,ph011d8,ph011d9,ph011d10,ph011d11,ph011d13,ph011d14,ph011d15,ph011dno,ph011dot,ph012_,ph013_,ph041_,ph043_,ph044_,ph045_,ph046_,ph048d1,ph048d2,ph048d3,ph048d4,ph048d5,ph048d6,ph048d7,ph048d8,ph048d9,ph048d10,ph048dno,ph049d1,ph049d2,ph049d3,ph049d4,ph049d5,ph049d6,ph049d7,ph049d8,ph049d9,ph049d10,ph049d11,ph049d12,ph049d13,ph049dno,ph061_,ph065_,ph066_,ph071_1,ph071_2,ph071_3,ph071_4,ph072_1,ph072_2,ph072_3,ph072_4,ph073_1,ph073_2,ph073_3,ph073_4,ph074_1,ph074_2,ph074_3,ph074_4,ph075_1,ph075_2,ph075_3,ph075_4,ph076_1,ph076_2,ph076_3,ph076_4,ph077_1,ph077_2,ph077_3,ph077_4,ph084_,ph085_,ph089d1,ph089d2,ph089d3,ph089d4,ph090_,ph091_,ph092_,ph094_,ph095_,mh037_,br015_,br016_,isced1997_r,initial_euro_d,euro_d --- How can i decide whether an instance is depressed or not? For example, consider this instance and find me the value for "???" 61.0,1.0,2.0,,,,4.0,1.0,1.0,15000.0,5.0,5.0,2.0,3.0,1.0,4.0,1.0,0.0,0.0,0.0,1.0,1.0,0.0,0.0,10.0,3.0,3.0,4.0,1.0,4.0,4.0,1.0,1.0,1.0,1.0,2.0,1.0,3.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,3.0,0.0,11.0,11.0,3.0,5.0,3.0,0.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,,,,,,,,,,,,,,,,,,,,,,,0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,70.0,166.0,5.0,2.0,2.0,5.0,2.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0,5.0,5.0,,,,,,5.0,5.0,5.0,5.0,,,,,,,,,,,,,,,,,,,,,5.0,,0.0,0.0,0.0,0.0,,5.0,7.0,2.0,,3.0,1.0,1.0,5.0,no,???
 ```
 """
 
-# ╔═╡ 8833e136-07dd-42ff-b5cc-cb4cff87c194
-LocalResource("../images/prompt-01-01.png")
-
-# ╔═╡ 1741894c-87e8-40c0-bc33-5086e5823a59
+# ╔═╡ bbf77d77-41d8-471b-84d6-77bca60ee9f5
 md"""
-Actually, in both for [Wave 5](https://www.share-datadocutool.org/control-construct-schemes/view/99) and [Wave 6](https://www.share-datadocutool.org/control-construct-schemes/view/145), `hh022_` is the question *I really feel part of this area. Would you say you strongly agree, agree, disagree or strongly disagree?* 
+!!! info "Exercise"
+	- Do you think the prompt above can give you some insights?
+	- If so, what is the price you have to pay?
 """
 
-# ╔═╡ 725e38d1-8f98-4a34-8ae8-fc134b2e490f
-md"""
----
-"""
-
-# ╔═╡ e1ad8296-dd83-4ce7-9e25-779e81d06727
+# ╔═╡ 70529231-d37d-4b23-bb62-d73fc3afc977
 md"""
 ### Prompt #2
-I am writing a data analysis pipeline. I have a lot of missing values and I want to remove them! Show me how to do it in Julia
+```
+Give me the minimal explanation rule for this random forest:
+▣ ([difficulty_none_adl__0.0] < 0.5)
+├✔ ([life_satisfaction] < 7.5)
+│ ├✔ ([gender__2.0] < 0.5)
+│ │ ├✔ ([pain__1.0] < 0.5)
+│ │ │ ├✔ ([life_satisfaction] < 5.5)
+│ │ │ │ ├✔ ([feel_full_of_energy__1.0] < 0.5)
+│ │ │ │ │ ├✔ no
+│ │ │ │ │ └✘ no
+│ │ │ │ └✘ ([out_of_control__2.0] < 0.5)
+│ │ │ │   ├✔ no
+│ │ │ │   └✘ no
+etc...
+```
 """
 
-# ╔═╡ 3ed03a33-1a2d-4f38-ad69-e3db2f5294bb
-LocalResource("../images/prompt-01-02.png")
-
-# ╔═╡ 2f0c0e80-7ed1-444a-9387-bb289901acf6
-md"""
----
-"""
-
-# ╔═╡ 2a5776a9-0732-4c0b-8227-8e42e664b7f4
-md"""
-### Prompt #3
-I am doing a data analysis in Julia and I want to know more about monovariate filter. Recently I heard about a method based on a metric called "entropy", I want to use that.
-"""
-
-# ╔═╡ 44d4af15-b64b-4b8c-8e7f-f72b33f3c53b
-LocalResource("../images/prompt-01-03.png")
+# ╔═╡ 34a6e1cf-ea00-4f5a-9750-8c705c4c9118
+LocalResource("../images/prompt-02-02.png")
 
 # ╔═╡ Cell order:
-# ╟─2807db23-4cbb-4542-9de1-26610595c6bd
-# ╟─49733da1-b29a-41cd-a1dd-3d748ca70f97
-# ╠═494947b5-219b-43ad-b29f-56216b3dc639
-# ╟─a6c8a233-8c6f-43b2-a4fd-a0bbc6425d74
-# ╟─e11b7142-8349-452e-9f8c-aaf006d90790
-# ╠═e202a63d-b119-47ac-bf70-6516fb29f423
-# ╠═f6b53ccf-85e2-40bd-bef4-6a329b1bf2d4
-# ╟─c5e327e5-a169-4f25-a09d-d0c4f6540d9d
-# ╠═6a09514b-b065-448e-bf78-420c0d6ce6a5
-# ╟─d3a4de4f-10c8-4e70-9104-b47364b99179
-# ╟─7db28b02-a364-4bd0-84fe-be7c2d87e2cc
-# ╟─c88ab2ca-0a1a-4065-b1bb-10858e45b599
-# ╟─276b5cc2-b96c-4ddb-83dc-4ffb71978982
-# ╟─a0e4c864-da20-4020-8f90-5f311ec1ba00
-# ╟─51f15ec3-d939-4416-9281-3b34b673fed6
-# ╠═f5a540a6-4660-47cb-8f82-594d8d40dd1f
-# ╠═35c37143-19be-4504-a289-6404c794c617
-# ╠═e6228654-1fd3-433d-8cc3-0ebda46e90af
-# ╠═b7dc3954-e7e2-4064-b96b-0f18ac20fd45
-# ╠═44130ea6-884e-45a7-a580-290b09609a49
-# ╟─43648c1f-7874-4c65-b4e5-8dce3bb8b4c8
-# ╟─fee060cb-c7b4-4956-a47b-8219bd9aa3b1
-# ╟─8d047693-fc98-44da-8ba2-53b43c0ffb88
-# ╠═be2a50c2-21c3-48a5-8246-28fd34cad8ed
-# ╠═a271df5b-07a9-4580-93f6-e4ae2cac527c
-# ╠═ce62c952-23d0-4a93-b96a-db65858a54e5
-# ╟─a4d45954-765c-42c2-913c-60bbd5a9e8f4
-# ╟─9889c086-f2d7-4878-b582-519af397271b
-# ╠═f9fa4262-616a-446e-8f36-1e1f4e057b6d
-# ╠═35e96199-c896-46a7-bc63-0853ba7bbd14
-# ╠═c85c719a-3c99-4c49-b056-ce59535a457f
-# ╟─77ee75b1-5a7c-4497-91f9-433aeb7d0a2a
-# ╟─5d02a4a5-7173-43ae-8422-1bf5e245529c
-# ╠═3094d269-cd3d-46b6-9f32-cb99e19f3cc9
-# ╠═d09c8f96-74fa-4e98-87b3-080f8d0aae02
-# ╟─147b3de2-5a64-4bfc-adc8-af8c9b5d25b8
-# ╟─4bf08b0e-ab51-4799-92bc-2c0991b561d3
-# ╟─3575f98f-37b4-4504-aec0-a6e546a7fb7e
-# ╟─590c1a09-4aac-46cc-9236-258593d16103
-# ╠═f087682f-2c34-4c5c-b098-936fd282371d
-# ╠═e452edcd-8ac8-4bb7-a96a-26b2ce8d6058
-# ╠═98bd33fc-526e-45c7-bbb6-ad67abe05838
-# ╟─660c38a6-2ad0-4e37-a083-d08b3c1d6413
-# ╠═fe25627e-3fbf-462c-a0aa-82d0179cd9bb
-# ╠═6243c7c3-8d9f-40a7-9276-bf80c92bd242
-# ╟─d7a4f151-e158-43ec-948d-3f0f98fe0729
-# ╠═f5fb9a1d-de7c-4a60-a3b3-6200386d44f5
-# ╠═73b63a56-8d36-4995-8157-1838ab882aaa
-# ╟─623a6bdf-7e23-4511-a974-a38515f8716a
-# ╟─3a34594c-bfd1-4791-8cfb-4649b5d7f09e
-# ╠═26537045-ee8b-496f-82dc-628221894934
-# ╠═4ec2c869-8b09-4b25-9bbe-101d632c096f
-# ╠═8d913135-5ee6-407a-aedb-c55b68b3b70d
-# ╠═340c97fe-837f-4563-a70e-1f04f9d02818
-# ╠═9ea155da-c7a1-46be-afdb-7bbf1bee5020
-# ╠═5bce1728-42b6-4d11-8e67-bdcbb261f758
-# ╟─97f45a63-5148-439f-b4bf-10d371dc357a
-# ╠═583f660f-e955-4ef0-bf04-555b1e294b7e
-# ╠═fb5b262b-c8f3-44ed-8c3d-96fb20ad227a
-# ╠═14fc7835-c63f-406e-984f-d5279640bf8e
-# ╟─853494bf-dab0-4c17-8b00-62960b98cd28
-# ╠═9bb12323-c3d8-4a40-a076-cf3c35fab32d
-# ╠═9bd07589-0e70-401a-aabd-11772b32aa34
-# ╠═a6b4bfef-7486-493d-b4e4-e6717d34c942
-# ╟─62744abc-80f2-49aa-9a49-f371a4427194
-# ╠═401f93f6-9253-43ba-8957-83f214fde4f0
-# ╟─57a07a80-0aea-44c2-9d53-2f2f9d8c201b
-# ╠═9d51ce42-752c-46f2-87bc-c064b952e770
-# ╠═94eadd14-2445-4ecc-a678-e8fc981674d8
-# ╠═d88e83ce-a1d5-4b6d-9f49-061a307dbee4
-# ╠═d5851387-9ceb-41ca-9e7a-e4064080e8cb
-# ╠═cca099f8-16f7-4960-bda0-ac86057be55b
-# ╠═aca83632-41ae-4696-ba82-7bcbbc5c6571
-# ╟─f7a5338f-9652-49f6-a95b-a91477e0788a
-# ╟─cfc63ecc-56e9-4347-b9af-122b83a2f9a3
-# ╟─35aa1f50-a2db-42c5-a080-45ec0d76ee33
-# ╟─2380ce25-6af6-4ed3-b528-d4fd55ef4abb
-# ╟─47b09493-06a9-48b0-aa52-5de51aca9e76
-# ╟─b4d57562-aab5-44ee-be52-3c106e0ce170
-# ╟─85a27e1d-4635-46c7-bd14-89a6e6f088f8
-# ╠═240443a3-42f2-4baf-b46b-621b97d5cd51
-# ╠═7e3de156-3690-4ec2-b138-093f239f4a32
-# ╠═2ea7a28e-3a74-4011-98f4-1c6a8cc639dd
-# ╠═28e85f18-0f54-459d-989c-6a971f25b15f
-# ╠═0207e0c5-9a8a-4daf-942c-edc54aac352f
-# ╠═92a4c81a-8bd4-457a-86da-96be85c3fb89
-# ╠═b0b97508-39a1-4f91-9975-188bbae4cb1b
-# ╠═3dc492e3-533d-46c0-bb4f-65496e87961d
-# ╠═da8e28da-c864-4eeb-b163-e3349be49567
-# ╟─9eee2f67-92b8-48c2-b502-73efa704562c
-# ╟─12533c7b-ca7f-4960-b969-77ae3f0e9063
-# ╠═f59ae421-e01c-43f1-9e15-6805f96aa746
-# ╠═b391021e-719e-412f-b13d-637fc5bcbe0c
-# ╠═639e7cb7-fb43-4a26-9692-29a668f5d430
-# ╟─5489432a-68e4-49b1-aa70-d2ee410d5dd1
-# ╠═c709b580-e26a-42be-a5c1-bb76833efd65
-# ╠═9cac84da-b466-47ec-bf66-1ab648755c9f
-# ╟─4a5dd797-5fb3-4074-9c7e-02c8db096777
-# ╟─660e2581-0636-4162-9477-855dcd6030b9
-# ╟─33024b81-50ac-45e4-8168-0a842c4d522d
-# ╟─c3af66c9-0998-4952-9e5b-91076763a922
-# ╠═8833e136-07dd-42ff-b5cc-cb4cff87c194
-# ╟─1741894c-87e8-40c0-bc33-5086e5823a59
-# ╟─725e38d1-8f98-4a34-8ae8-fc134b2e490f
-# ╟─e1ad8296-dd83-4ce7-9e25-779e81d06727
-# ╟─3ed03a33-1a2d-4f38-ad69-e3db2f5294bb
-# ╟─2f0c0e80-7ed1-444a-9387-bb289901acf6
-# ╟─2a5776a9-0732-4c0b-8227-8e42e664b7f4
-# ╟─44d4af15-b64b-4b8c-8e7f-f72b33f3c53b
+# ╟─34bafc6f-ac2a-4cdb-b9c2-f766111251cb
+# ╠═a1000000-3353-11f1-90b2-21952756a80b
+# ╠═53c022c4-b0f3-42c0-94b0-7114bec855e7
+# ╟─d7df4cf0-e938-471a-8284-e741588cf830
+# ╠═a2000000-3353-11f1-90b2-21952756a80b
+# ╠═a3000000-3353-11f1-90b2-21952756a80b
+# ╟─cfc1ddfb-3171-41df-a319-7e55b6ac79ad
+# ╟─f0753df6-d698-4649-b5fd-ac7dcb385ce8
+# ╠═d3fdbf72-79ee-4712-8469-4d29768b4559
+# ╟─43815971-fda4-4b32-abd6-77ee7df1e1d6
+# ╠═1295b232-f44e-415e-b69b-b6f20786da58
+# ╠═9f0ae520-5f94-4e34-bb03-f8c68a61157a
+# ╠═7d268051-0758-4c20-ae25-253a2a4627e8
+# ╟─d4e2b317-92b9-4f59-b63d-91d14d3af828
+# ╟─2ac0e4ca-7e77-47b8-b1b9-9e1ed0d1c426
+# ╠═a6000000-3353-11f1-90b2-21952756a80b
+# ╟─66ec88be-2014-40a1-a221-e8fbed52c3b7
+# ╠═d0b073f2-2bba-433d-afc4-c5cc085ada62
+# ╟─cdcbdbae-6867-453f-bbae-c7490a2c3df2
+# ╠═67a333d7-4aa7-45bd-ad05-957fc87102f2
+# ╠═51278f4e-d554-48f6-a63f-14f3e78fee17
+# ╠═cf3b8afb-f32d-42f1-aa7e-7dfc0ec0ef17
+# ╠═4ccc6d8a-a6c3-42c5-bdcd-e489bcdb6798
+# ╠═565c7e32-c824-41e8-a8ea-4d1e4a638c86
+# ╠═a7000000-3353-11f1-90b2-21952756a80b
+# ╠═b0000000-3353-11f1-90b2-21952756a80b
+# ╟─6abe7cf4-231c-4f75-839f-6b80891d3088
+# ╠═c70c1204-60a1-4ecf-b0a1-8a60938686ff
+# ╠═d9bac238-70b3-43a0-95c5-99fb5ae96b92
+# ╠═57d8be18-2370-4fbc-bc69-eb54898e9dff
+# ╟─6b94d7db-7f2f-4471-8999-b138b6b0c448
+# ╟─64d0496d-51f0-48f1-9068-f34328d7a857
+# ╠═76edf51c-7ca6-49d1-85e8-bab1b77c04c2
+# ╠═b1000000-3353-11f1-90b2-21952756a80b
+# ╟─99f3b672-b24e-4d09-a1bb-cc4b2f928347
+# ╠═a1ee0585-0fb7-4019-ae32-fc2fbf9588b3
+# ╠═c9999307-8118-4b39-b74f-8296685035b6
+# ╠═d8b09a29-2f37-4ff5-af0f-b7c03258c8af
+# ╠═3c57b20b-42c0-464e-be47-ce653dfff359
+# ╟─125b244f-762a-449a-ac71-daa428650f81
+# ╟─df689893-a895-4b3e-85a2-5364274bf575
+# ╠═b5000000-3353-11f1-90b2-21952756a80b
+# ╟─1f8b37ed-336b-4f6e-9d47-643bdf5295d7
+# ╠═c8ac4328-8f16-4033-baec-2b7861c4010f
+# ╟─ac27ff8d-dacb-4cae-b7e3-cc70135feaa6
+# ╠═b6000000-3353-11f1-90b2-21952756a80b
+# ╟─b7000000-3353-11f1-90b2-21952756a80b
+# ╟─edc4f8f8-12b9-45b2-bbbe-32736dc6fbd3
+# ╟─948beef6-c940-4852-9500-76fb521aa437
+# ╟─d5458851-5414-484c-82cc-4e63b5ec06ef
+# ╠═d3227330-0101-4253-838e-6f916fbbd18c
+# ╠═fd2a40f9-20f1-44a7-8231-9796dffd0922
+# ╠═b8000000-3353-11f1-90b2-21952756a80b
+# ╟─b9000000-3353-11f1-90b2-21952756a80b
+# ╠═c0000000-3353-11f1-90b2-21952756a80b
+# ╟─c2000000-3353-11f1-90b2-21952756a80b
+# ╟─5b76d562-5472-416b-b63c-1fef7c81cd5f
+# ╟─58ee4d37-9fa9-4f09-9d37-15d9f69d5ac2
+# ╟─98213623-eaec-4928-bfea-c0f0c4f04f90
+# ╠═5117a6c9-b090-4d85-9cbc-9500beb09f7e
+# ╟─c3000000-3353-11f1-90b2-21952756a80b
+# ╟─2b686c03-03df-41c4-a78f-71aae61ad5ff
+# ╠═c4000000-3353-11f1-90b2-21952756a80b
+# ╠═9410b8b8-10f0-460b-b46c-a7715cee1fe2
+# ╠═b6bc4920-7538-4df9-8295-4730db58be77
+# ╠═b03265a4-0776-41c9-846a-5e74b459814d
+# ╠═1d0cc054-5c38-46d5-9033-4872d265c0d8
+# ╠═c5000000-3353-11f1-90b2-21952756a80b
+# ╟─c7000000-3353-11f1-90b2-21952756a80b
+# ╟─ca74043d-78ae-47a1-a58a-a8d349313fda
+# ╟─f147f0f9-5e64-4413-9142-c0ec6d081506
+# ╠═bf81a25b-cbbe-4f61-8fe2-d558f13aeb5d
+# ╠═6fa4955d-c170-4e43-8cf6-0158cc08f60a
+# ╠═524f77c3-ebe2-4e7d-bd00-538c3de83cd0
+# ╠═d8b150a0-261a-47fc-8ad5-c071f57c2077
+# ╠═8692525e-a66d-4413-8722-80b9f1bf436a
+# ╟─9319d70b-e1ae-493f-92bf-42745840411a
+# ╠═7008b6f7-806c-4a13-8010-8f8d1537b258
+# ╟─cdaf88f6-d1a6-4a77-a9f6-c68eca79d364
+# ╠═9955fa39-3aae-4cf8-81e6-a2e3ce7d5615
+# ╠═b7b72708-4f7a-4a5b-a898-b0487b4ef44e
+# ╠═7f731578-78c6-4c06-8cf8-a121fb7c0345
+# ╟─69a04f86-9c42-49b1-92e3-02aaed3fd97b
+# ╟─5723b1e8-b594-4893-b71d-3df41fe49393
+# ╠═0946aa01-90cf-4747-915b-f6806995a36b
+# ╟─c4aa241b-d4da-4b08-9143-9ff2754564cc
+# ╠═fa4f5fc2-aa91-484a-9544-f09a36857db1
+# ╠═7ebaad1b-0f94-4649-8630-f5890bff2fed
+# ╟─3f87b4ca-a1ca-4622-8ed6-edc18480dc63
+# ╠═1d3eb7ab-3765-485e-bfdd-0ca236004e75
+# ╠═8d28f8b0-1165-4ed2-bd3e-a09741363e83
+# ╟─f93ecd9e-3cad-4afd-a6e3-fbabf9f347a5
+# ╠═bfdb2bfd-8c23-4f04-b60e-b60ff5a927fd
+# ╠═866f833d-dfc5-43a0-8dd5-a58679115f2b
+# ╟─eb0c334f-2be9-45ca-b4d6-b747396d9a6d
+# ╠═b48b9625-22bf-4d64-bf88-5c6d923e196d
+# ╠═bbfdc551-476d-4d28-b676-f5477fc8c12b
+# ╟─af48c01f-a98d-43c2-9a14-d4c780f86590
+# ╟─bbf77d77-41d8-471b-84d6-77bca60ee9f5
+# ╟─70529231-d37d-4b23-bb62-d73fc3afc977
+# ╠═34a6e1cf-ea00-4f5a-9750-8c705c4c9118
