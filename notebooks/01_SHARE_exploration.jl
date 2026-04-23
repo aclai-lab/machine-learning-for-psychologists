@@ -1108,7 +1108,7 @@ LocalResource("../images/prompt-01-03.png")
 # ╠═cca099f8-16f7-4960-bda0-ac86057be55b
 # ╠═aca83632-41ae-4696-ba82-7bcbbc5c6571
 # ╟─f7a5338f-9652-49f6-a95b-a91477e0788a
-# ╟─cfc63ecc-56e9-4347-b9af-122b83a2f9a3
+# ╠═cfc63ecc-56e9-4347-b9af-122b83a2f9a3
 # ╟─35aa1f50-a2db-42c5-a080-45ec0d76ee33
 # ╟─2380ce25-6af6-4ed3-b528-d4fd55ef4abb
 # ╟─47b09493-06a9-48b0-aa52-5de51aca9e76
