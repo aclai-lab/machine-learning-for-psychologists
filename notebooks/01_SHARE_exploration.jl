@@ -553,7 +553,7 @@ scatter(
 	group=df_no_missing[:, "euro_d"],
 	markerstrokewidth=0,
 	markersize=1,
-	xlabel="Euro-d depression at follow up",
+	xlabel="Euro-d depression at baseline",
 	ylabel=target_attribute,
 )
 
@@ -568,7 +568,7 @@ Finally, we try to visualize the ratio between depressed and non-depressed patie
 # ╔═╡ 6243c7c3-8d9f-40a7-9276-bf80c92bd242
 begin
 	df_euro_temp = dropmissing(df_no_missing, [df_euro_colname, "euro_d"])
-	col_data = collect(df_euro_temp[:, df_euro_colname])
+	col_data = df_euro_temp[:, df_euro_colname]
 
 	p1 = histogram(col_data; group=df_euro_temp[:, "euro_d"], xlabel=df_euro_colname, title="Histogram")
 	p2 = boxplot(col_data; ylabel=df_euro_colname, title="Boxplot", legend=false)
@@ -641,6 +641,12 @@ end
 
 # ╔═╡ 9ea155da-c7a1-46be-afdb-7bbf1bee5020
 @bind numerical_impute_strategy Select([mode, mean, median])
+
+# ╔═╡ aea3251e-6240-4392-884e-d38979d8f5ea
+for col in numerical_attribute_names
+	val = numerical_impute_strategy(df_typed[!, col])
+	df_typed[!, col] = coalesce.(df_typed[!, col], val)
+end
 
 # ╔═╡ 97f45a63-5148-439f-b4bf-10d371dc357a
 md"""
@@ -1083,6 +1089,7 @@ LocalResource("../images/prompt-01-03.png")
 # ╠═8d913135-5ee6-407a-aedb-c55b68b3b70d
 # ╠═c2dc1f3a-e416-4304-b523-bac1e43d26f4
 # ╠═9ea155da-c7a1-46be-afdb-7bbf1bee5020
+# ╠═aea3251e-6240-4392-884e-d38979d8f5ea
 # ╟─97f45a63-5148-439f-b4bf-10d371dc357a
 # ╠═583f660f-e955-4ef0-bf04-555b1e294b7e
 # ╠═fb5b262b-c8f3-44ed-8c3d-96fb20ad227a
