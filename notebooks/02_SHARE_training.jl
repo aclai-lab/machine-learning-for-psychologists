@@ -438,33 +438,6 @@ possible_tree_depths  = collect(1:10)
 # ╔═╡ b6bc4920-7538-4df9-8295-4730db58be77
 possible_tree_numbers = collect(2:20)
 
-# ╔═╡ b03265a4-0776-41c9-846a-5e74b459814d
-function set_hyperparameters(directions::Vector)
-	return combine() do Child
-		inputs = [
-			if name == "max_depth" || name == "n_trees"
-				md""" $(name): $(
-					Child(name, Slider(1:20 , show_value = true, default=10))
-				)"""
-			else
-				md""" $(name): $(
-					Child(name, Slider(1:10, show_value = true, default=3))
-				)"""
-			end
-			
-			for name in directions
-		]
-		
-		md"""
-		#### Forest hyperparameters
-		$(inputs)
-		"""
-	end
-end
-
-# ╔═╡ 1d0cc054-5c38-46d5-9033-4872d265c0d8
-
-
 # ╔═╡ c5000000-3353-11f1-90b2-21952756a80b
 begin
     forest = MLJDecisionTreeInterface.RandomForestClassifier(
@@ -809,8 +782,6 @@ LocalResource("../images/prompt-02-02.png")
 # ╠═c4000000-3353-11f1-90b2-21952756a80b
 # ╠═9410b8b8-10f0-460b-b46c-a7715cee1fe2
 # ╠═b6bc4920-7538-4df9-8295-4730db58be77
-# ╟─b03265a4-0776-41c9-846a-5e74b459814d
-# ╠═1d0cc054-5c38-46d5-9033-4872d265c0d8
 # ╠═c5000000-3353-11f1-90b2-21952756a80b
 # ╟─c7000000-3353-11f1-90b2-21952756a80b
 # ╟─ca74043d-78ae-47a1-a58a-a8d349313fda
