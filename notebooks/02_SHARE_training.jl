@@ -35,7 +35,7 @@ begin
     using MLJ
 	using MLJBase
 	using MLJTransforms
-	#using SoleData.Artifacts
+
 	using SoleModels
 	using SolePostHoc
 
@@ -136,12 +136,6 @@ MLJ automatically inferred the correct scientific types for each attribute, and 
 As we can see above, however, the Missing type is kept separated from Multiclass, when specifying the type of a categorical value. 
 
 Since the Multiclass scientific type explicits that there is no ordering between the values of an attribute, we can safely convert missings to a numerical value.
-"""
-
-# ╔═╡ 2ac0e4ca-7e77-47b8-b1b9-9e1ed0d1c426
-md"""
-!!! info "Exercise"
-	In your opinion, why missings are kept separated from the Multiclass specifier?
 """
 
 # ╔═╡ a6000000-3353-11f1-90b2-21952756a80b
@@ -808,7 +802,6 @@ LocalResource("../images/prompt-02-02.png")
 # ╠═9f0ae520-5f94-4e34-bb03-f8c68a61157a
 # ╠═7d268051-0758-4c20-ae25-253a2a4627e8
 # ╟─d4e2b317-92b9-4f59-b63d-91d14d3af828
-# ╟─2ac0e4ca-7e77-47b8-b1b9-9e1ed0d1c426
 # ╠═a6000000-3353-11f1-90b2-21952756a80b
 # ╟─3f185c7c-cbc8-4d33-be2c-57d72784c51e
 # ╠═d0b073f2-2bba-433d-afc4-c5cc085ada62
