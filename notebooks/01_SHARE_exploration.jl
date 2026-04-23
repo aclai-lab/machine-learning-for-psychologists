@@ -526,10 +526,16 @@ euro_score_total = [
 ]
 
 # ╔═╡ 05a3e05b-89ec-4798-bc91-4715d50d114a
-# TODO: add the check about initial_euro_d
-# for score in euro_score_total
-# 	if score >= 4
-# end
+for i in 1:n_rows_df_no_missing
+	ith_score = euro_score_total[i]
+	ith_ied = df_no_missing[i, "initial_euro_d"]
+
+	# this is the negation of the condition we want
+	if (ith_score >= 4 && ith_ied == "no") ||
+		(ith_score < 4 && ith_ied == "yes")
+		print("Something went wrong for the patient number $(i)!")
+	end
+end
 
 # ╔═╡ 590c1a09-4aac-46cc-9236-258593d16103
 md"""
