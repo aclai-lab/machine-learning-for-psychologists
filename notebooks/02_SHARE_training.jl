@@ -326,7 +326,7 @@ md"""
 cm_dt
 
 # ╔═╡ b7000000-3353-11f1-90b2-21952756a80b
-md"**Accuracy Decision Tree (test set):** $(round(accuracy(cm_dt)*100, digits=4))"
+md"**Accuracy Decision Tree (test set):** $(round(accuracy(cm_dt), digits=4))"
 
 # ╔═╡ edc4f8f8-12b9-45b2-bbbe-32736dc6fbd3
 md"**Precision Decision Tree (test set):** $(round(precision(cm_dt), digits=4))"
@@ -463,14 +463,14 @@ function set_hyperparameters(directions::Vector)
 end
 
 # ╔═╡ 1d0cc054-5c38-46d5-9033-4872d265c0d8
-@bind trees_param set_hyperparameters(["min_samples_leaf", "min_samples_split"]) 
+
 
 # ╔═╡ c5000000-3353-11f1-90b2-21952756a80b
 begin
     forest = MLJDecisionTreeInterface.RandomForestClassifier(
         max_depth         = 3,
-        min_samples_leaf  = trees_param.min_samples_leaf,
-        min_samples_split = trees_param.min_samples_split,
+        min_samples_leaf  = 3,
+        min_samples_split = 3,
         n_trees           = 3
     )
 
@@ -483,7 +483,7 @@ begin
 end
 
 # ╔═╡ c7000000-3353-11f1-90b2-21952756a80b
-md"**Accuracy Random Forest:** $(round(accuracy(cm_rf) * 100, digits=4))"
+md"**Accuracy Random Forest:** $(round(accuracy(cm_rf), digits=4))"
 
 # ╔═╡ ca74043d-78ae-47a1-a58a-a8d349313fda
 md"**Precision Random Forest:** $(round(precision(cm_rf), digits=4))"
@@ -521,30 +521,6 @@ begin
     df_y_prob_tuned = MLJ.predict(df_mach_tuned, X_test)
     df_y_pred_tuned = mode.(df_y_prob_tuned)
     df_cm_tuned     = confusion_matrix(df_y_pred_tuned, y_test)
-end
-
-# ╔═╡ 524f77c3-ebe2-4e7d-bd00-538c3de83cd0
-begin
-	featurenames_decisiontree = MLJ.report(mach_dt).features
-	classnames_decisiontree = sort(MLJ.report(mach_dt).classes_seen)
-	
-	sole_decisiontree =  SoleModels.solemodel(
-		fitted_params(mach_dt).tree;
-		featurenames = featurenames_decisiontree, 
-		classlabels = classnames_decisiontree
-	)
-end
-
-# ╔═╡ d8b150a0-261a-47fc-8ad5-c071f57c2077
-begin
-    featurenames_tunedtree = MLJ.report(mach_tuned).best_report.features
-    classnames_tunedtree = sort(MLJ.report(mach_tuned).best_report.classes_seen)
-	
-    sole_tunedtree = SoleModels.solemodel(
-        fitted_params(mach_tuned).best_fitted_params.tree;
-        featurenames = featurenames_tunedtree,
-        classlabels = classnames_tunedtree
-    )
 end
 
 # ╔═╡ 8692525e-a66d-4413-8722-80b9f1bf436a
@@ -841,8 +817,6 @@ LocalResource("../images/prompt-02-02.png")
 # ╟─f147f0f9-5e64-4413-9142-c0ec6d081506
 # ╠═bf81a25b-cbbe-4f61-8fe2-d558f13aeb5d
 # ╠═6fa4955d-c170-4e43-8cf6-0158cc08f60a
-# ╠═524f77c3-ebe2-4e7d-bd00-538c3de83cd0
-# ╠═d8b150a0-261a-47fc-8ad5-c071f57c2077
 # ╠═8692525e-a66d-4413-8722-80b9f1bf436a
 # ╟─9319d70b-e1ae-493f-92bf-42745840411a
 # ╠═7008b6f7-806c-4a13-8010-8f8d1537b258
