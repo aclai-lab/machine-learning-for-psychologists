@@ -58,7 +58,7 @@ In this notebook, we are going to leverage **MLJ** and **Sole** to train decisio
 
 MLJ is probably the most famous package in Julia for supporting machine learning workflows with structured (i.e., tabular) data.
 
-Sole is a framework specialized for the treatment of *symbolic* models. Very briefly, it enables the learning of original models, a deep inspection and optimization of the latter, and even dealing with unstructured (i.e., non tabular) data.
+Sole is a long-term project including a high-level, efficient implementation. This is a *symbolic learning* and *reasoning* framework designed for tabular and non-tabular data.
 
 It is very common to see "doubly-connected channels" between MLJ and other packages of the Julia community! As we shall later, Sole is no exception, and the two frameworks can be used in synergy.
 """
@@ -144,7 +144,6 @@ begin
     mach = machine(imputer, X_raw)
     fit!(mach)
     X_coerced_raw = MLJ.transform(mach, X_raw)
-    schema(X_coerced_raw);
 end
 
 # ╔═╡ 3f185c7c-cbc8-4d33-be2c-57d72784c51e
@@ -184,7 +183,7 @@ X = MLJBase.transform(ohe_mach_fitted, X_coerced_raw);
 size(X)
 
 # ╔═╡ a7000000-3353-11f1-90b2-21952756a80b
-X_ninstances, X_nattr+ibutes = size(X)
+X_ninstances, X_nattributes = size(X)
 
 # ╔═╡ b0000000-3353-11f1-90b2-21952756a80b
 begin
@@ -204,9 +203,6 @@ end
 
 # ╔═╡ 0e734fdc-969b-46c6-a9c9-fca950afd09a
 size(X_train)
-
-# ╔═╡ 54e24bc2-3fe6-4c6b-acf2-96de70e2736b
-
 
 # ╔═╡ 6abe7cf4-231c-4f75-839f-6b80891d3088
 md"""
@@ -263,31 +259,6 @@ begin
     DecisionTreeClassifier = @load DecisionTreeClassifier pkg=DecisionTree verbosity=0
 end
 
-# ╔═╡ 99f3b672-b24e-4d09-a1bb-cc4b2f928347
-md"""
-The two commands below demonstrate that the specific implementation of decision tree coming from `DecisionTree.jl` is not compatible with `Multiclass` scientific type (whilst the one coming from `BetaML` could be fine by-design!).
-"""
-
-# ╔═╡ a1ee0585-0fb7-4019-ae32-fc2fbf9588b3
-MLJ.models(matching(X_raw, y))
-
-# ╔═╡ c9999307-8118-4b39-b74f-8296685035b6
-for model in MLJ.models(matching(X_raw, y))
-	if model.name == "DecisionTreeClassifier"
-		println(model)
-	end
-end
-
-# ╔═╡ d8b09a29-2f37-4ff5-af0f-b7c03258c8af
-MLJ.models(matching(X_train, y_train))
-
-# ╔═╡ 3c57b20b-42c0-464e-be47-ce653dfff359
-for model in MLJ.models(matching(X_train, y_train))
-	if model.name == "DecisionTreeClassifier"
-		println(model)
-	end
-end
-
 # ╔═╡ 125b244f-762a-449a-ac71-daa428650f81
 md"""
 !!! info "Exercise"
@@ -314,13 +285,14 @@ model = MLJDecisionTreeInterface.DecisionTreeClassifier(
 begin
     mach_dt = machine(model, X_train, y_train)
     fit!(mach_dt)
-    y_prob_dt = MLJ.predict(mach_dt, X_test)
-    y_pred_dt = mode.(y_prob_dt)
-    cm_dt = confusion_matrix(y_pred_dt, y_test)
+	y_prob_dt0 = MLJ.predict(mach_dt, X_test[1:1, :])
+	y_pred_dt0 = mode.(y_prob_dt0)
 end
 
 # ╔═╡ 1f8b37ed-336b-4f6e-9d47-643bdf5295d7
 md"""
+## Model Evaluation
+
 To assess the quality of the trained model, we leverage a *confusion matrix* (see below).
 
 In general, we are interested in three metrics: *accuracy*, *precision* and *recall* (or *sensitivity*, as indicated below).
@@ -331,6 +303,13 @@ In general, we are interested in three metrics: *accuracy*, *precision* and *rec
 
 **Recall** is the proportion of actual positives that are captured; if the recall is low, then just a few positives are captured.
 """
+
+# ╔═╡ 915a5356-dcec-4773-b836-f57a5234e5be
+begin
+	y_prob_dt = MLJ.predict(mach_dt, X_test)
+	y_pred_dt = mode.(y_prob_dt)
+	cm_dt = confusion_matrix(y_pred_dt, y_test)
+end
 
 # ╔═╡ c8ac4328-8f16-4033-baec-2b7861c4010f
 LocalResource("../images/confusion_matrix.png")
@@ -347,13 +326,18 @@ md"""
 cm_dt
 
 # ╔═╡ b7000000-3353-11f1-90b2-21952756a80b
-md"**Accuracy Decision Tree (test set):** $(round(accuracy(cm_dt), digits=4))"
+md"**Accuracy Decision Tree (test set):** $(round(accuracy(cm_dt)*100, digits=4))"
 
 # ╔═╡ edc4f8f8-12b9-45b2-bbbe-32736dc6fbd3
 md"**Precision Decision Tree (test set):** $(round(precision(cm_dt), digits=4))"
 
 # ╔═╡ 948beef6-c940-4852-9500-76fb521aa437
 md"**Recall Decision Tree (test set):** $(round(recall(cm_dt), digits=4))"
+
+# ╔═╡ 213c50e5-60ed-4333-8c81-11d3e0055700
+md"""
+---
+"""
 
 # ╔═╡ d5458851-5414-484c-82cc-4e63b5ec06ef
 md"""
@@ -446,7 +430,7 @@ md"## Random Forest"
 LocalResource("../images/random_forest.png")
 
 # ╔═╡ c4000000-3353-11f1-90b2-21952756a80b
-RandomForestClassifier = @load RandomForestClassifier pkg=DecisionTree
+RandomForestClassifier = @load RandomForestClassifier pkg=DecisionTree verbosity=0
 
 # ╔═╡ 9410b8b8-10f0-460b-b46c-a7715cee1fe2
 possible_tree_depths  = collect(1:10)
@@ -479,7 +463,7 @@ function set_hyperparameters(directions::Vector)
 end
 
 # ╔═╡ 1d0cc054-5c38-46d5-9033-4872d265c0d8
-@bind trees_param set_hyperparameters(["max_depth", "min_samples_leaf", "min_samples_split", "n_trees"]) 
+@bind trees_param set_hyperparameters(["min_samples_leaf", "min_samples_split"]) 
 
 # ╔═╡ c5000000-3353-11f1-90b2-21952756a80b
 begin
@@ -499,7 +483,7 @@ begin
 end
 
 # ╔═╡ c7000000-3353-11f1-90b2-21952756a80b
-md"**Accuracy Random Forest:** $(round(accuracy(cm_rf), digits=4))"
+md"**Accuracy Random Forest:** $(round(accuracy(cm_rf) * 100, digits=4))"
 
 # ╔═╡ ca74043d-78ae-47a1-a58a-a8d349313fda
 md"**Precision Random Forest:** $(round(precision(cm_rf), digits=4))"
@@ -813,7 +797,6 @@ LocalResource("../images/prompt-02-02.png")
 # ╠═a7000000-3353-11f1-90b2-21952756a80b
 # ╠═b0000000-3353-11f1-90b2-21952756a80b
 # ╠═0e734fdc-969b-46c6-a9c9-fca950afd09a
-# ╠═54e24bc2-3fe6-4c6b-acf2-96de70e2736b
 # ╟─6abe7cf4-231c-4f75-839f-6b80891d3088
 # ╠═c70c1204-60a1-4ecf-b0a1-8a60938686ff
 # ╠═d9bac238-70b3-43a0-95c5-99fb5ae96b92
@@ -822,24 +805,21 @@ LocalResource("../images/prompt-02-02.png")
 # ╟─64d0496d-51f0-48f1-9068-f34328d7a857
 # ╠═76edf51c-7ca6-49d1-85e8-bab1b77c04c2
 # ╠═b1000000-3353-11f1-90b2-21952756a80b
-# ╟─99f3b672-b24e-4d09-a1bb-cc4b2f928347
-# ╠═a1ee0585-0fb7-4019-ae32-fc2fbf9588b3
-# ╠═c9999307-8118-4b39-b74f-8296685035b6
-# ╠═d8b09a29-2f37-4ff5-af0f-b7c03258c8af
-# ╠═3c57b20b-42c0-464e-be47-ce653dfff359
 # ╟─125b244f-762a-449a-ac71-daa428650f81
 # ╟─df689893-a895-4b3e-85a2-5364274bf575
 # ╠═b5000000-3353-11f1-90b2-21952756a80b
 # ╟─1f8b37ed-336b-4f6e-9d47-643bdf5295d7
+# ╠═915a5356-dcec-4773-b836-f57a5234e5be
 # ╠═c8ac4328-8f16-4033-baec-2b7861c4010f
 # ╟─ac27ff8d-dacb-4cae-b7e3-cc70135feaa6
 # ╠═b6000000-3353-11f1-90b2-21952756a80b
 # ╟─b7000000-3353-11f1-90b2-21952756a80b
 # ╟─edc4f8f8-12b9-45b2-bbbe-32736dc6fbd3
 # ╟─948beef6-c940-4852-9500-76fb521aa437
+# ╟─213c50e5-60ed-4333-8c81-11d3e0055700
 # ╟─d5458851-5414-484c-82cc-4e63b5ec06ef
-# ╠═d3227330-0101-4253-838e-6f916fbbd18c
-# ╠═fd2a40f9-20f1-44a7-8231-9796dffd0922
+# ╟─d3227330-0101-4253-838e-6f916fbbd18c
+# ╟─fd2a40f9-20f1-44a7-8231-9796dffd0922
 # ╠═b8000000-3353-11f1-90b2-21952756a80b
 # ╟─b9000000-3353-11f1-90b2-21952756a80b
 # ╠═c0000000-3353-11f1-90b2-21952756a80b
@@ -853,7 +833,7 @@ LocalResource("../images/prompt-02-02.png")
 # ╠═c4000000-3353-11f1-90b2-21952756a80b
 # ╠═9410b8b8-10f0-460b-b46c-a7715cee1fe2
 # ╠═b6bc4920-7538-4df9-8295-4730db58be77
-# ╠═b03265a4-0776-41c9-846a-5e74b459814d
+# ╟─b03265a4-0776-41c9-846a-5e74b459814d
 # ╠═1d0cc054-5c38-46d5-9033-4872d265c0d8
 # ╠═c5000000-3353-11f1-90b2-21952756a80b
 # ╟─c7000000-3353-11f1-90b2-21952756a80b
