@@ -29,7 +29,7 @@ begin
     using StatsBase
     using PlutoUI
 	import PlutoUI: combine
-	using Plots
+	using Plots 
 
 	# the machine learning engines!
     using MLJ
