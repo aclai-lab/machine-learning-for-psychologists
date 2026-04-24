@@ -654,7 +654,7 @@ if start_intrees_extractor
         intrees_extractor,
         sole_randomforest,
         DataFrame(X_test),
-        y_test_vec
+	 	Vector(y_test[:, 1])
     )
 end
 
