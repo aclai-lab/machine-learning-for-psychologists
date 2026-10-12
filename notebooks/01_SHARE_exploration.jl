@@ -94,6 +94,9 @@ begin
 	CSV_PATH = "$(DATA_PATH).csv";
 end
 
+# ╔═╡ ba7b5a59-82e6-4ca3-b0a6-9f317bca6430
+
+
 # ╔═╡ f6b53ccf-85e2-40bd-bef4-6a329b1bf2d4
 df_raw = DataFrame(load(SAV_PATH))
 
@@ -747,6 +750,13 @@ plot(
 # ╔═╡ aca83632-41ae-4696-ba82-7bcbbc5c6571
 size(df_no_outliers)
 
+# ╔═╡ 4ef649f7-ebf4-41fc-b053-e89ff968b0fc
+plot(
+	histogram(df_freq_filter[:, "weight"]; title="weight distribution", legend=false),
+	histogram(df_no_outliers[:, "weight"]; title="weight within $(z_score_threshold)σ", legend=false);
+	layout=(1, 2)
+)
+
 # ╔═╡ f7a5338f-9652-49f6-a95b-a91477e0788a
 md"""
 ### Multivariate approach
@@ -1032,19 +1042,33 @@ I am doing a data analysis in Julia and I want to know more about monovariate fi
 # ╔═╡ 44d4af15-b64b-4b8c-8e7f-f72b33f3c53b
 LocalResource("../images/prompt-01-03.png")
 
+# ╔═╡ 5e4e7342-2bda-4f8e-a91f-fcaf993fb73e
+#=╠═╡
+@bind important_document FilePicker()
+  ╠═╡ =#
+
+# ╔═╡ 5794da6d-2e24-4c9f-9655-652ac94a9c4f
+# ╠═╡ disabled = true
+#=╠═╡
+@bind important_document FilePicker()
+  ╠═╡ =#
+
 # ╔═╡ Cell order:
 # ╟─2807db23-4cbb-4542-9de1-26610595c6bd
 # ╟─49733da1-b29a-41cd-a1dd-3d748ca70f97
 # ╠═494947b5-219b-43ad-b29f-56216b3dc639
 # ╟─a6c8a233-8c6f-43b2-a4fd-a0bbc6425d74
-# ╟─e11b7142-8349-452e-9f8c-aaf006d90790
-# ╠═e202a63d-b119-47ac-bf70-6516fb29f423
+# ╠═e11b7142-8349-452e-9f8c-aaf006d90790
+# ╟─e202a63d-b119-47ac-bf70-6516fb29f423
+# ╟─ba7b5a59-82e6-4ca3-b0a6-9f317bca6430
+# ╟─5794da6d-2e24-4c9f-9655-652ac94a9c4f
 # ╠═f6b53ccf-85e2-40bd-bef4-6a329b1bf2d4
+# ╠═5e4e7342-2bda-4f8e-a91f-fcaf993fb73e
 # ╟─c5e327e5-a169-4f25-a09d-d0c4f6540d9d
 # ╠═6a09514b-b065-448e-bf78-420c0d6ce6a5
 # ╟─d3a4de4f-10c8-4e70-9104-b47364b99179
 # ╟─7db28b02-a364-4bd0-84fe-be7c2d87e2cc
-# ╟─c88ab2ca-0a1a-4065-b1bb-10858e45b599
+# ╠═c88ab2ca-0a1a-4065-b1bb-10858e45b599
 # ╟─276b5cc2-b96c-4ddb-83dc-4ffb71978982
 # ╟─a0e4c864-da20-4020-8f90-5f311ec1ba00
 # ╟─51f15ec3-d939-4416-9281-3b34b673fed6
@@ -1055,12 +1079,12 @@ LocalResource("../images/prompt-01-03.png")
 # ╠═44130ea6-884e-45a7-a580-290b09609a49
 # ╟─43648c1f-7874-4c65-b4e5-8dce3bb8b4c8
 # ╟─fee060cb-c7b4-4956-a47b-8219bd9aa3b1
-# ╟─8d047693-fc98-44da-8ba2-53b43c0ffb88
+# ╠═8d047693-fc98-44da-8ba2-53b43c0ffb88
 # ╠═be2a50c2-21c3-48a5-8246-28fd34cad8ed
 # ╠═a271df5b-07a9-4580-93f6-e4ae2cac527c
 # ╠═ce62c952-23d0-4a93-b96a-db65858a54e5
 # ╟─a4d45954-765c-42c2-913c-60bbd5a9e8f4
-# ╟─9889c086-f2d7-4878-b582-519af397271b
+# ╠═9889c086-f2d7-4878-b582-519af397271b
 # ╠═f9fa4262-616a-446e-8f36-1e1f4e057b6d
 # ╠═35e96199-c896-46a7-bc63-0853ba7bbd14
 # ╠═c85c719a-3c99-4c49-b056-ce59535a457f
@@ -1107,8 +1131,9 @@ LocalResource("../images/prompt-01-03.png")
 # ╠═d5851387-9ceb-41ca-9e7a-e4064080e8cb
 # ╠═cca099f8-16f7-4960-bda0-ac86057be55b
 # ╠═aca83632-41ae-4696-ba82-7bcbbc5c6571
+# ╠═4ef649f7-ebf4-41fc-b053-e89ff968b0fc
 # ╟─f7a5338f-9652-49f6-a95b-a91477e0788a
-# ╠═cfc63ecc-56e9-4347-b9af-122b83a2f9a3
+# ╟─cfc63ecc-56e9-4347-b9af-122b83a2f9a3
 # ╟─35aa1f50-a2db-42c5-a080-45ec0d76ee33
 # ╟─2380ce25-6af6-4ed3-b528-d4fd55ef4abb
 # ╟─47b09493-06a9-48b0-aa52-5de51aca9e76

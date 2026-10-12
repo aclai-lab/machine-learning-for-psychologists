@@ -325,6 +325,9 @@ md"""
 # ╔═╡ b6000000-3353-11f1-90b2-21952756a80b
 cm_dt
 
+# ╔═╡ be0a0bd7-09bb-4cb6-8a37-632bb5271692
+precision(cm_dt)
+
 # ╔═╡ b7000000-3353-11f1-90b2-21952756a80b
 md"**Accuracy Decision Tree (test set):** $(round(accuracy(cm_dt), digits=4))"
 
@@ -755,13 +758,14 @@ LocalResource("../images/prompt-02-02.png")
 # ╠═76edf51c-7ca6-49d1-85e8-bab1b77c04c2
 # ╠═b1000000-3353-11f1-90b2-21952756a80b
 # ╟─125b244f-762a-449a-ac71-daa428650f81
-# ╟─df689893-a895-4b3e-85a2-5364274bf575
+# ╠═df689893-a895-4b3e-85a2-5364274bf575
 # ╠═b5000000-3353-11f1-90b2-21952756a80b
 # ╟─1f8b37ed-336b-4f6e-9d47-643bdf5295d7
 # ╠═915a5356-dcec-4773-b836-f57a5234e5be
 # ╠═c8ac4328-8f16-4033-baec-2b7861c4010f
 # ╟─ac27ff8d-dacb-4cae-b7e3-cc70135feaa6
 # ╠═b6000000-3353-11f1-90b2-21952756a80b
+# ╠═be0a0bd7-09bb-4cb6-8a37-632bb5271692
 # ╟─b7000000-3353-11f1-90b2-21952756a80b
 # ╟─edc4f8f8-12b9-45b2-bbbe-32736dc6fbd3
 # ╟─948beef6-c940-4852-9500-76fb521aa437
